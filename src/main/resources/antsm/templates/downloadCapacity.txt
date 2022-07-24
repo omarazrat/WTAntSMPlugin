@@ -1,0 +1,16 @@
+#ir a la página del equipo.
+set={"name":"shortdelay","value":"300 S"}
+set={"name":"longdelay","value":"3 s"}
+go={{TEAM_URL}}
+pause={"time":"[:shortdelay]"}
+click={"selector":"#action-menu-link > span > span"}
+pause={"time":"[:shortdelay]"}
+#Archivos adjuntos
+click={"selector":"#view-attachments-link"}
+pause={"time":"[:longdelay]"}
+click={"selector":"td.filename-column > a.filename"}
+#descargar...
+pause={"time":"[:longdelay]"}
+wait={"selector":"#cp-container-1 > div.cp-header.cp-header-group > div.cp-file-controls.cp-header-item > span:nth-child(2) > a"}
+click={"selector":"#cp-container-1 > div.cp-header.cp-header-group > div.cp-file-controls.cp-header-item > span:nth-child(2) > a"}
+pause={"time":"[:longdelay]"}
