@@ -44,7 +44,7 @@ public final class JIRAReportHelper {
     private static Properties sysProps;
     private static Logger log = Logger.getLogger("WebAppTester");
     private static List<JIRAReportInfo> jirarepCache = new LinkedList<>();
-    private static final String JIRA_USER, JIRA_PWD;
+    private static String JIRA_USER, JIRA_PWD;
 
     public enum TICKET_STATE {
         TODO,
@@ -87,9 +87,15 @@ public final class JIRAReportHelper {
     }
 
     static {
-        sysProps = getConfigFile();
-        JIRA_USER = sysProps.getProperty("JIRA.user");
-        JIRA_PWD = sysProps.getProperty("JIRA.password");
+        try {
+            sysProps = getConfigFile();
+            JIRA_USER = sysProps.getProperty("JIRA.user");
+            JIRA_PWD = sysProps.getProperty("JIRA.password");
+            String home = sysProps.getProperty("JIRA.home");
+            AntSMUtilites.run("set={\"name\":\"JIRA_HOME\",\"value\":\""+home+"\"}");
+        } catch (Exception ex) {
+            log.log(Level.SEVERE, null, ex);
+        }
     }
 
     public static void login() throws InvalidVarNameException, IOException, InvalidParamException {
@@ -102,7 +108,7 @@ public final class JIRAReportHelper {
 
     public static List<JIRAReportInfo> getJIRAReports(String teamName, String JIRAid, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException {
         List<JIRAReportInfo> resp = new LinkedList<>();
-        final String location = "https://jira.bbpd.io/secure/RapidBoard.jspa?rapidView={team}&view=reporting&chart=sprintRetrospective"
+        final String location = "[:JIRA_HOME]/secure/RapidBoard.jspa?rapidView={team}&view=reporting&chart=sprintRetrospective"
                 .replace("{team}", JIRAid);
         AntSMUtilites.run("go={" + location + "}");
         AntSMUtilites.run("pause={\"time\":\"2 s\"}");

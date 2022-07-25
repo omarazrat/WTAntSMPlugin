@@ -3,9 +3,12 @@ Anthology Scrum Masters tools plugin for  jWebAppTester
 
 Para utilizarlo:
 
-1. Descargue la [última versión](https://github.com/omarazrat/jWebAppTester/releases) del proyecto [jWebAppTester](https://github.com/omarazrat/jWebAppTester).
+1. Descargue la [&uacute;ltima versi&oacute;n](https://github.com/omarazrat/jWebAppTester/releases/latest) del proyecto [jWebAppTester](https://github.com/omarazrat/jWebAppTester) y gu&aacute;rdelo en una carpeta que llamaremos **BASE**.
 2. Descargue Java >=14 y todos los controladores Selenium para su navegador de acuerdo con la ayuda de ese proyecto.
-3. Ejecute por primera vez la aplicación jWebAppTester, deje que cree los directorios al inicio y déjela corriendo: necesitará el botón para encriptar contraseñas.
-4. Copie esta aplicación en la carpeta **lib**.
-5. Extraiga el archivo de configuración de esta versión de antsm/templates/antsmConfig.properties, cópielo a la carpeta lib/antsm y configure todas las variables requeridas. Aquí utilizará el botón para encriptar contraseñas.
-6. Reinicie la aplicación jWebAppTester, verá este plugin en la pestaña de complementos.
+3. Ejecute por primera vez la aplicaci&oacute;n jWebAppTester, deje que cree los directorios al inicio y d&eacute;jela corriendo: necesitar&aacute; el bot&oacute;n para encriptar contrase&ntilde;as.
+4. Copie esta aplicaci&oacute;n en la carpeta **${BASE}/lib**.
+5. Reinicie la aplicaci&oacute;n webAppTester, busque el bot&oacute;n para este plugin y haga clic en el.
+6. Modifique el archivo **${BASE}/lib/antsm/antsmConfig.properties** y configure todas las variables requeridas.
+Principalmente: JIRA.*, CONFLUENCE.* 
+Aqu&iacute;� utilizar&aacute; el bot&oacute;n para encriptar contrase&ntilde;as.
+7. Reinicie la aplicaci&oacute;n webAppTester, ya puede utilizar el complemento sin problemas.

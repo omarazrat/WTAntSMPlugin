@@ -1,4 +1,4 @@
-go={https://confluence.bbpd.io/login.action}
+go={[:CONFLUENCE_HOME]/login.action}
 write={"selector":"#os_username","text":"{JIRA_USER}"}
 write={"selector":"#os_password","text":"{JIRA_PWD}"}
 click={"selector":"#loginButton"}

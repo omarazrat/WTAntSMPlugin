@@ -37,7 +37,7 @@
             </plugin>
 <!--            Copy the full jar with dependencies to my webAppTester lib folder. 
             Remove this-->
-<!--            <plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>3.2.0</version>
@@ -61,7 +61,32 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>        -->
+            </plugin>        
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.2.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-full-jar</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <resources>
+                                <resource>
+                                    <directory>target</directory>
+                                    <includes>
+                                        <include>${project.artifactId}-${project.version}-${jar-with-dependencies-name}.jar</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                            <outputDirectory>C:\Users\nesto\OneDrive\Documentos\Laboral\Empresas\Blackboard\bin\lib</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>        
         </plugins>
 
     </build>

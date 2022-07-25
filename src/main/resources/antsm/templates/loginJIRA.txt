@@ -1,4 +1,4 @@
-go={https://jira.bbpd.io/secure/Dashboard.jspa}
+go={[:JIRA_HOME]/secure/Dashboard.jspa}
 pause={"time":"1 s"}
 write={"selector":"#login-form-username","text":"{JIRA_USER}"}
 write={"selector":"#login-form-password","text":"{JIRA_PWD}"}

@@ -27,14 +27,15 @@ import antsm.com.tests.swing.ControlPanel;
 import static antsm.com.tests.utils.ConfluenceHelper.getCapacityURL;
 import static antsm.com.tests.utils.JIRAReportHelper.getJiraPassword;
 import static antsm.com.tests.utils.JIRAReportHelper.getJiraUser;
-import antsm.com.tests.utils.PythonReportHelper;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.logging.Level;
+import javax.swing.JOptionPane;
 import oa.com.tests.plugins.AbstractDefaultPluginRunner;
-import org.openqa.selenium.WebDriver;
 import oa.com.tests.actionrunners.interfaces.PluginInterface;
 
 /**
@@ -88,7 +89,7 @@ public class AntSMUtilites extends AbstractDefaultPluginRunner {
         ostream.close();
         String instructions = new String(ostream.toByteArray())
                 .replace("{TEAM_URL}", teamName == null ? "" : getCapacityURL(teamName))
-                .replace("{JIRA_USER}",getJiraUser())
+                .replace("{JIRA_USER}", getJiraUser())
                 .replace("{JIRA_PWD}", getJiraPassword());
 //        log.info("instructions:" + instructions);
         run(instructions);
@@ -97,7 +98,26 @@ public class AntSMUtilites extends AbstractDefaultPluginRunner {
     public static Properties getConfigFile() {
         Properties sysProps = new Properties();
         try {
-            sysProps.load(new FileReader("lib/antsm/antsmConfig.properties"));
+            final String slash = System.getProperty("file.separator");
+            File antsmFolder = new File("lib" + slash + "antsm");
+            if (!antsmFolder.exists()) {
+                antsmFolder.mkdir();
+            }
+            String configPath = "lib" + slash + "antsm" + slash + "antsmConfig.properties";
+            File configFile = new File(configPath);
+//            log.info(configFile.getAbsolutePath());
+            if (!configFile.exists()) {
+                configFile.createNewFile();
+                InputStream profileInput = AntSMUtilites.class.getResourceAsStream("/antsm/templates/antsmConfig.properties");
+                FileOutputStream profileOutput = new FileOutputStream(configFile);
+                profileInput.transferTo(profileOutput);
+                profileInput.close();
+                profileOutput.close();
+                JOptionPane.showMessageDialog(null, "Properties file created in " + configFile.getAbsolutePath() + "\n"
+                        + "Edit this file as required and restart the app");
+            }
+            sysProps.load(new FileReader(configPath));
+            //Variables globales
         } catch (IOException e) {
             log.log(Level.SEVERE, e.getMessage(), e);
         }

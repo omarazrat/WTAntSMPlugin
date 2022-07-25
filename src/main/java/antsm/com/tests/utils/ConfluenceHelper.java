@@ -51,6 +51,16 @@ public final class ConfluenceHelper {
 
     static {
         sysProps = getConfigFile();
+        try {
+            String home = sysProps.getProperty("CONFLUENCE.home");
+//            log.info("setting confluence home to "+home);
+            String command = "set={\"name\":\"CONFLUENCE_HOME\",\"value\":\""+home+"\"}";
+//            log.info(command);
+            AntSMUtilites.run(command);
+//            log.info("done");
+        } catch (Exception ex) {
+            log.log(Level.SEVERE, null, ex);
+        }
     }
 
     public static List<CapacityInfo> getCapacities(String teamName, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException, InvalidFormatException, OpenXML4JException {
@@ -205,6 +215,6 @@ public final class ConfluenceHelper {
     }
 
     public static void logout() throws IOException, InvalidVarNameException, InvalidParamException {
-        AntSMUtilites.run("go={https://confluence.bbpd.io/logout.action}");
+        AntSMUtilites.run("go={[:CONFLUENCE_HOME]/logout.action}");
     }
 }
