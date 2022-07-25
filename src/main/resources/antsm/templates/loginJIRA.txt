@@ -1,6 +1,6 @@
 go={[:JIRA_HOME]/secure/Dashboard.jspa}
-pause={"time":"1 s"}
+pause={"time":"[:longdelay]"}
 write={"selector":"#login-form-username","text":"{JIRA_USER}"}
 write={"selector":"#login-form-password","text":"{JIRA_PWD}"}
 click={"selector":"#login"}
-pause={"time":"1 s"}
+pause={"time":"[:shortdelay]"}

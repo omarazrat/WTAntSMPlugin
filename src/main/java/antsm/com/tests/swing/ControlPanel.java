@@ -14,10 +14,7 @@
 package antsm.com.tests.swing;
 
 import java.awt.event.ItemEvent;
-import java.io.ByteArrayOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -32,28 +29,13 @@ import javax.swing.JButton;
 import javax.swing.ListModel;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
-import antsm.com.tests.logic.CapacityInfo;
-import antsm.com.tests.logic.JIRAReportInfo;
-import antsm.com.tests.logic.SPReportInfo;
 import antsm.com.tests.plugins.AntSMUtilites;
-import static antsm.com.tests.plugins.AntSMUtilites.getConfigFile;
 import antsm.com.tests.utils.ConfluenceHelper;
-import static antsm.com.tests.utils.ConfluenceHelper.getCapacities;
-import static antsm.com.tests.utils.ConfluenceHelper.getCapacitiesCache;
-import static antsm.com.tests.utils.ConfluenceHelper.getCapacityURL;
-import static antsm.com.tests.utils.ConfluenceHelper.inCapacitiesCache;
 import antsm.com.tests.utils.JIRAReportHelper;
-import static antsm.com.tests.utils.JIRAReportHelper.getJIRAName;
-import static antsm.com.tests.utils.JIRAReportHelper.getJIRARCache;
-import static antsm.com.tests.utils.JIRAReportHelper.getJIRAReports;
-import static antsm.com.tests.utils.JIRAReportHelper.inJIRARCache;
+import antsm.com.tests.utils.PoiHelper;
 import static antsm.com.tests.utils.PoiHelper.buildDatabaseWB;
 import antsm.com.tests.utils.PythonReportHelper;
-import static antsm.com.tests.utils.PythonReportHelper.getSPRCache;
-import static antsm.com.tests.utils.PythonReportHelper.getSPReports;
-import static antsm.com.tests.utils.PythonReportHelper.inSPRCache;
 import java.io.File;
-import java.nio.file.Path;
 import javax.swing.JOptionPane;
 
 /**
@@ -70,7 +52,12 @@ public class ControlPanel extends javax.swing.JFrame {
      * Creates new form ControlPanel
      */
     public ControlPanel() {
-        sysProps = getConfigFile();
+        AntSMUtilites.init();
+        sysProps = AntSMUtilites.getConfigFile();
+        PoiHelper.init();
+        PythonReportHelper.init();
+        JIRAReportHelper.init();
+        ConfluenceHelper.init();
         initComponents();
     }
 
@@ -128,6 +115,14 @@ public class ControlPanel extends javax.swing.JFrame {
         DatabaseBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.HIDE_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosed(java.awt.event.WindowEvent evt) {
+                formWindowClosed(evt);
+            }
+            public void windowOpened(java.awt.event.WindowEvent evt) {
+                formWindowOpened(evt);
+            }
+        });
 
         jTabbedPane1.setName("Database"); // NOI18N
 
@@ -253,26 +248,27 @@ public class ControlPanel extends javax.swing.JFrame {
                 ? IntStream.range(1, 27).boxed().collect(toList())
                 : new LinkedList<Integer>(Sprint.getSelectedValuesList().stream().map(Integer::parseInt).collect(toList()));
 
-        String filePath="";
+        String filePath = "";
         try {
             login();
-             final File outputFolder = new File("lib/antsm/output/");
-             if(!outputFolder.exists())
-                 outputFolder.mkdir();
+            final File outputFolder = new File("lib/antsm/output/");
+            if (!outputFolder.exists()) {
+                outputFolder.mkdir();
+            }
             String slash = System.getProperty("file.separator");
             long suffix = System.currentTimeMillis();
-            filePath = outputFolder.getAbsoluteFile()+slash+"output_"+suffix+".xlsx";
-            File f= new File(filePath);
-            if(f.exists()){
+            filePath = outputFolder.getAbsoluteFile() + slash + "output_" + suffix + ".xlsx";
+            File f = new File(filePath);
+            if (f.exists()) {
                 f.delete();
             }
-            buildDatabaseWB(filePath,teamNames, sprints);
+            buildDatabaseWB(filePath, teamNames, sprints);
         } catch (Exception ex) {
-            Logger.getLogger(ControlPanel.class.getName()).log(Level.SEVERE, null, ex);
+            log.log(Level.SEVERE, null, ex);
         } finally {
             logout();
             log.info("end of operation");
-            JOptionPane.showMessageDialog(null, "Report saved to "+filePath);
+            JOptionPane.showMessageDialog(null, "Report saved to " + filePath);
         }
     }//GEN-LAST:event_DatabaseBtnActionPerformed
 
@@ -291,6 +287,19 @@ public class ControlPanel extends javax.swing.JFrame {
     private void SprintCBoxStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_SprintCBoxStateChanged
         updateBtnEnabledStatus();
     }//GEN-LAST:event_SprintCBoxStateChanged
+
+    private void formWindowClosed(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosed
+        PoiHelper.destroy();
+        PythonReportHelper.destroy();
+        JIRAReportHelper.destroy();
+        ConfluenceHelper.destroy();
+        AntSMUtilites.destroy();
+        dispose();
+    }//GEN-LAST:event_formWindowClosed
+
+    private void formWindowOpened(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowOpened
+
+    }//GEN-LAST:event_formWindowOpened
 
     private void login() throws InvalidParamException, IOException, InvalidVarNameException {
         //-login to Confluence

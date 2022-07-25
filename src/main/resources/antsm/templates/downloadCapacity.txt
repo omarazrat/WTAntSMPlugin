@@ -1,6 +1,4 @@
 #ir a la página del equipo.
-set={"name":"shortdelay","value":"300 S"}
-set={"name":"longdelay","value":"3 s"}
 go={{TEAM_URL}}
 pause={"time":"[:shortdelay]"}
 click={"selector":"#action-menu-link > span > span"}

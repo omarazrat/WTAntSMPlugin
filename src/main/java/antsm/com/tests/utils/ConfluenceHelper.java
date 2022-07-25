@@ -49,7 +49,7 @@ public final class ConfluenceHelper {
     private static Logger log = Logger.getLogger("WebAppTester");
     private static List<CapacityInfo> capacityCache = new LinkedList<>();
 
-    static {
+    public static void init() {
         sysProps = getConfigFile();
         try {
             String home = sysProps.getProperty("CONFLUENCE.home");
@@ -61,6 +61,10 @@ public final class ConfluenceHelper {
         } catch (Exception ex) {
             log.log(Level.SEVERE, null, ex);
         }
+    }
+    
+    public static void destroy(){
+        capacityCache.clear();
     }
 
     public static List<CapacityInfo> getCapacities(String teamName, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException, InvalidFormatException, OpenXML4JException {

@@ -45,15 +45,18 @@ public final class PythonReportHelper {
     private static Properties sysProps;
     private static Logger log = Logger.getLogger("WebAppTester");
     private static List<SPReportInfo> spreportCache = new LinkedList<>();
-    private static final String spreportPath;
-    private static final String pythonPath;
+    private static String spreportPath;
+    private static String pythonPath;
 
-    static {
+    public static void init() {
         sysProps = getConfigFile();
-        spreportPath = sysProps.getProperty("JIRA.spreportPath");
-        pythonPath = sysProps.getProperty("JIRA.pythonPath");
+        spreportPath = sysProps.getProperty("PYTHON.spreportPath");
+        pythonPath = sysProps.getProperty("PYTHON.pythonPath");
     }
 
+    public static void destroy(){
+        spreportCache.clear();
+    }
     /**
      * Thanks to
      * https://stackoverflow.com/questions/5711084/java-runtime-getruntime-getting-output-from-executing-a-command-line-program

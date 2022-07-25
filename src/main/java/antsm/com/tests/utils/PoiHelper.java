@@ -65,13 +65,17 @@ public final class PoiHelper {
     private static int year;
     private static HashMap<Integer, Integer> sprintxquarter = new HashMap<>();
 
-    static {
+    public static void init() {
         sysProps = getConfigFile();
         fillSpQuarters();
         year = Integer.parseInt(sysProps.getProperty("year", "0"));
-        log.info("year:" + year);
+//        log.info("year:" + year);
     }
 
+    public static void destroy(){
+        sprintxquarter.clear();
+    }
+    
     public static Workbook buildDatabaseWB(String destPath, List<String> teamNames, List<Integer> sprints) throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException {
         SXSSFWorkbook workbook = new SXSSFWorkbook(100);
         buildDatabase(workbook, teamNames, sprints);

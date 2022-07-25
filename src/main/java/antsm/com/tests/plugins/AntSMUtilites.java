@@ -46,6 +46,7 @@ public class AntSMUtilites extends AbstractDefaultPluginRunner {
 
     private static AntSMUtilites instance;
     private static final Logger log = Logger.getLogger("WebAppTester");
+    private static Properties sysProps = new Properties();
 
     public AntSMUtilites() {
         instance = this;
@@ -95,8 +96,7 @@ public class AntSMUtilites extends AbstractDefaultPluginRunner {
         run(instructions);
     }
 
-    public static Properties getConfigFile() {
-        Properties sysProps = new Properties();
+    public static void init() {
         try {
             final String slash = System.getProperty("file.separator");
             File antsmFolder = new File("lib" + slash + "antsm");
@@ -117,10 +117,20 @@ public class AntSMUtilites extends AbstractDefaultPluginRunner {
                         + "Edit this file as required and restart the app");
             }
             sysProps.load(new FileReader(configPath));
-            //Variables globales
-        } catch (IOException e) {
+            String delay = sysProps.getProperty("var.shortdelay");
+            run("set={\"name\":\"shortdelay\",\"value\":\"" + delay + "\"}");
+            delay = sysProps.getProperty("var.longdelay");
+            run("set={\"name\":\"longdelay\",\"value\":\"" + delay + "\"}");
+        } catch (Exception e) {
             log.log(Level.SEVERE, e.getMessage(), e);
         }
+    }
+
+    public static void destroy() {
+        sysProps.clear();
+    }
+
+    public static Properties getConfigFile() {
         return sysProps;
     }
 }

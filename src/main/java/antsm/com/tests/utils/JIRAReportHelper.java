@@ -19,7 +19,6 @@ import static antsm.com.tests.plugins.AntSMUtilites.getConfigFile;
 import static antsm.com.tests.plugins.AntSMUtilites.runTemplate;
 import static antsm.com.tests.utils.JIRAReportHelper.TABLE_TYPE.COMPLETED_OUTSIDE_SPRINT;
 import static antsm.com.tests.utils.JIRAReportHelper.TABLE_TYPE.REMOVED_FROM_SPRINT;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -86,16 +85,20 @@ public final class JIRAReportHelper {
         }
     }
 
-    static {
+    public static void init() {
         try {
             sysProps = getConfigFile();
             JIRA_USER = sysProps.getProperty("JIRA.user");
             JIRA_PWD = sysProps.getProperty("JIRA.password");
             String home = sysProps.getProperty("JIRA.home");
-            AntSMUtilites.run("set={\"name\":\"JIRA_HOME\",\"value\":\""+home+"\"}");
+            AntSMUtilites.run("set={\"name\":\"JIRA_HOME\",\"value\":\"" + home + "\"}");
         } catch (Exception ex) {
             log.log(Level.SEVERE, null, ex);
         }
+    }
+
+    public static void destroy() {
+        jirarepCache.clear();
     }
 
     public static void login() throws InvalidVarNameException, IOException, InvalidParamException {
@@ -111,7 +114,7 @@ public final class JIRAReportHelper {
         final String location = "[:JIRA_HOME]/secure/RapidBoard.jspa?rapidView={team}&view=reporting&chart=sprintRetrospective"
                 .replace("{team}", JIRAid);
         AntSMUtilites.run("go={" + location + "}");
-        AntSMUtilites.run("pause={\"time\":\"2 s\"}");
+        AntSMUtilites.run("pause={\"time\":\"[:longdelay]\"}");
         final WebDriver driver = AntSMUtilites.getDriver();
         for (int sprint : sprints) {
             By pickerSelector = By.cssSelector("#ghx-chart-picker");
@@ -140,7 +143,7 @@ public final class JIRAReportHelper {
             WebElement opt = match.get();
             AntSMUtilites.run("go={" + location + "&sprint=" + opt.getAttribute("value") + "}");
 
-            AntSMUtilites.run("pause={\"time\":\"2 s\"}");
+            AntSMUtilites.run("pause={\"time\":\"[:longdelay]\"}");
             JIRAReportInfo jiraRInfo = new JIRAReportInfo(teamName, sprint);
             int toDo = 0, inProgress = 0, inReview = 0, onHold = 0, totalTickets = 0, completedTickets = 0;
             try {
