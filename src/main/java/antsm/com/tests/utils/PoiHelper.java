@@ -81,6 +81,8 @@ public final class PoiHelper {
         buildDatabase(workbook, teamNames, sprints);
         FileOutputStream out = new FileOutputStream(destPath);
         workbook.write(out);
+        workbook.close();
+        out.close();
         return workbook;
     }
 
