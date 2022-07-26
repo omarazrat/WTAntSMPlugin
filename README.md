@@ -9,6 +9,6 @@ Para utilizarlo:
 4. Copie esta aplicaci&oacute;n en la carpeta **${BASE}/lib**.
 5. Reinicie la aplicaci&oacute;n webAppTester, busque el bot&oacute;n para este plugin y haga clic en el.
 6. Modifique el archivo **${BASE}/lib/antsm/antsmConfig.properties** y configure todas las variables requeridas.
-Principalmente: JIRA.*, CONFLUENCE.*, PYTHON.*. 
-Aqu&iacute;­ utilizar&aacute; el bot&oacute;n para encriptar contrase&ntilde;as.
+Principalmente: JIRA.\*, CONFLUENCE.\*, PYTHON.\*. 
+Aqu&iacute;Â­ utilizar&aacute; el bot&oacute;n para encriptar contrase&ntilde;as.
 7. Cierre la ventana de este conector y vuelva a abrirla: ya puede utilizarlo sin problemas.
