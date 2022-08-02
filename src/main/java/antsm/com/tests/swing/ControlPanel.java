@@ -35,8 +35,13 @@ import antsm.com.tests.utils.JIRAReportHelper;
 import antsm.com.tests.utils.PoiHelper;
 import static antsm.com.tests.utils.PoiHelper.buildDatabaseWB;
 import antsm.com.tests.utils.PythonReportHelper;
+import java.awt.HeadlessException;
+import java.beans.PropertyChangeEvent;
+import java.beans.PropertyChangeListener;
 import java.io.File;
+import java.util.ResourceBundle;
 import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
 
 /**
  *
@@ -47,6 +52,7 @@ public class ControlPanel extends javax.swing.JFrame {
     private Properties sysProps;
     private Logger log = Logger.getLogger("WebAppTester");
     final String REGEXP_TEAMS_NAME = "^team\\.(.*)\\.capacity";
+    private transient boolean procRunning = false;
 
     /**
      * Creates new form ControlPanel
@@ -103,16 +109,27 @@ public class ControlPanel extends javax.swing.JFrame {
         java.awt.GridBagConstraints gridBagConstraints;
 
         jTabbedPane1 = new javax.swing.JTabbedPane();
-        jPanel1 = new javax.swing.JPanel();
-        TeamL = new javax.swing.JLabel();
-        SprintL = new javax.swing.JLabel();
-        TeamSP = new javax.swing.JScrollPane();
-        Team = new javax.swing.JList<>();
-        TeamCBox = new javax.swing.JCheckBox();
-        SprintSP = new javax.swing.JScrollPane();
-        Sprint = new javax.swing.JList<>();
-        SprintCBox = new javax.swing.JCheckBox();
-        DatabaseBtn = new javax.swing.JButton();
+        group1 = new javax.swing.JPanel();
+        G1TeamL = new javax.swing.JLabel();
+        G1SprintL = new javax.swing.JLabel();
+        G1TeamSP = new javax.swing.JScrollPane();
+        G1Team = new javax.swing.JList<>();
+        G1TeamCBox = new javax.swing.JCheckBox();
+        G1SprintSP = new javax.swing.JScrollPane();
+        G1Sprint = new javax.swing.JList<>();
+        G1SprintCBox = new javax.swing.JCheckBox();
+        G1DatabaseBtn = new javax.swing.JButton();
+        group2 = new javax.swing.JPanel();
+        G2TeamL = new javax.swing.JLabel();
+        G2TeamSP = new javax.swing.JScrollPane();
+        G2Team = new javax.swing.JList<>();
+        G2TeamCBox = new javax.swing.JCheckBox();
+        G2BBQCBtn = new javax.swing.JButton();
+        G2QuarterL = new javax.swing.JLabel();
+        G2QuarterSP = new javax.swing.JScrollPane();
+        G2Quarter = new javax.swing.JList<>();
+        G2QuarterCBox = new javax.swing.JCheckBox();
+        progressBar = new javax.swing.JProgressBar();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.HIDE_ON_CLOSE);
         addWindowListener(new java.awt.event.WindowAdapter() {
@@ -123,170 +140,285 @@ public class ControlPanel extends javax.swing.JFrame {
                 formWindowOpened(evt);
             }
         });
-
-        jTabbedPane1.setName("Database"); // NOI18N
-
-        jPanel1.setLayout(new java.awt.GridBagLayout());
+        getContentPane().setLayout(new java.awt.GridBagLayout());
 
         java.util.ResourceBundle bundle = java.util.ResourceBundle.getBundle("antsm"); // NOI18N
-        TeamL.setText(bundle.getString("labels.team.name")); // NOI18N
+        jTabbedPane1.setName(bundle.getString("group1.title")); // NOI18N
+
+        group1.setLayout(new java.awt.GridBagLayout());
+
+        G1TeamL.setText(bundle.getString("labels.team.name")); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridwidth = 2;
-        jPanel1.add(TeamL, gridBagConstraints);
+        group1.add(G1TeamL, gridBagConstraints);
 
-        SprintL.setText(bundle.getString("labels.sprint")); // NOI18N
+        G1SprintL.setText(bundle.getString("labels.sprint")); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridwidth = 2;
-        jPanel1.add(SprintL, gridBagConstraints);
+        group1.add(G1SprintL, gridBagConstraints);
 
-        Team.setModel(getTeamNamesModel()
+        G1Team.setModel(getTeamNamesModel()
         );
-        Team.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+        G1Team.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
             public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
-                TeamValueChanged(evt);
+                G1TeamValueChanged(evt);
             }
         });
-        TeamSP.setViewportView(Team);
+        G1TeamSP.setViewportView(G1Team);
 
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridy = 1;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
-        jPanel1.add(TeamSP, gridBagConstraints);
+        group1.add(G1TeamSP, gridBagConstraints);
 
-        TeamCBox.setText(bundle.getString("labels.all")); // NOI18N
-        TeamCBox.addItemListener(new java.awt.event.ItemListener() {
+        G1TeamCBox.setText(bundle.getString("labels.all")); // NOI18N
+        G1TeamCBox.addItemListener(new java.awt.event.ItemListener() {
             public void itemStateChanged(java.awt.event.ItemEvent evt) {
                 AllTeamsStateChanged(evt);
             }
         });
-        TeamCBox.addChangeListener(new javax.swing.event.ChangeListener() {
+        G1TeamCBox.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
-                TeamCBoxStateChanged(evt);
+                G1TeamCBoxStateChanged(evt);
             }
         });
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridy = 1;
-        jPanel1.add(TeamCBox, gridBagConstraints);
+        group1.add(G1TeamCBox, gridBagConstraints);
 
-        Sprint.setModel(getSprintsModel());
-        Sprint.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+        G1Sprint.setModel(getSprintsModel());
+        G1Sprint.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
             public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
-                SprintValueChanged(evt);
+                G1SprintValueChanged(evt);
             }
         });
-        SprintSP.setViewportView(Sprint);
+        G1SprintSP.setViewportView(G1Sprint);
 
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridy = 1;
         gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
-        jPanel1.add(SprintSP, gridBagConstraints);
+        group1.add(G1SprintSP, gridBagConstraints);
 
-        SprintCBox.setText(bundle.getString("labels.all")); // NOI18N
-        SprintCBox.addItemListener(new java.awt.event.ItemListener() {
+        G1SprintCBox.setText(bundle.getString("labels.all")); // NOI18N
+        G1SprintCBox.addItemListener(new java.awt.event.ItemListener() {
             public void itemStateChanged(java.awt.event.ItemEvent evt) {
                 AllSprintsStateChanged(evt);
             }
         });
-        SprintCBox.addChangeListener(new javax.swing.event.ChangeListener() {
+        G1SprintCBox.addChangeListener(new javax.swing.event.ChangeListener() {
             public void stateChanged(javax.swing.event.ChangeEvent evt) {
-                SprintCBoxStateChanged(evt);
+                G1SprintCBoxStateChanged(evt);
             }
         });
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridy = 1;
-        jPanel1.add(SprintCBox, gridBagConstraints);
+        group1.add(G1SprintCBox, gridBagConstraints);
 
-        DatabaseBtn.setText(bundle.getString("button.data_base.label")); // NOI18N
-        DatabaseBtn.setEnabled(false);
-        DatabaseBtn.addActionListener(new java.awt.event.ActionListener() {
+        G1DatabaseBtn.setText(bundle.getString("button.data_base.label")); // NOI18N
+        G1DatabaseBtn.setEnabled(false);
+        G1DatabaseBtn.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                DatabaseBtnActionPerformed(evt);
+                G1DatabaseBtnActionPerformed(evt);
             }
         });
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridy = 2;
-        jPanel1.add(DatabaseBtn, gridBagConstraints);
+        group1.add(G1DatabaseBtn, gridBagConstraints);
 
-        jTabbedPane1.addTab("Database", jPanel1);
+        jTabbedPane1.addTab(bundle.getString("group1.title"), group1); // NOI18N
 
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
-        layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jTabbedPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 628, Short.MAX_VALUE)
-                .addContainerGap())
+        group2.setLayout(new java.awt.GridBagLayout());
+
+        G2TeamL.setText(bundle.getString("labels.team.name")); // NOI18N
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridwidth = 2;
+        group2.add(G2TeamL, gridBagConstraints);
+
+        G2Team.setModel(getTeamNamesModel()
         );
-        layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jTabbedPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 312, Short.MAX_VALUE)
-        );
+        G2Team.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                G2TeamValueChanged(evt);
+            }
+        });
+        G2TeamSP.setViewportView(G2Team);
+
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridy = 1;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        group2.add(G2TeamSP, gridBagConstraints);
+
+        G2TeamCBox.setText(bundle.getString("labels.all")); // NOI18N
+        G2TeamCBox.addItemListener(new java.awt.event.ItemListener() {
+            public void itemStateChanged(java.awt.event.ItemEvent evt) {
+                G2TeamCBoxAllTeamsStateChanged(evt);
+            }
+        });
+        G2TeamCBox.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                G2TeamCBoxStateChanged(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridy = 1;
+        group2.add(G2TeamCBox, gridBagConstraints);
+
+        G2BBQCBtn.setText(bundle.getString("button.qc.label")); // NOI18N
+        G2BBQCBtn.setEnabled(false);
+        G2BBQCBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                G2BBQCBtnActionPerformed(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridy = 2;
+        group2.add(G2BBQCBtn, gridBagConstraints);
+
+        G2QuarterL.setText(bundle.getString("labels.quarter")); // NOI18N
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridwidth = 2;
+        group2.add(G2QuarterL, gridBagConstraints);
+        G2QuarterL.getAccessibleContext().setAccessibleName(bundle.getString("labels.quarter")); // NOI18N
+
+        G2Quarter.setModel(new javax.swing.AbstractListModel<String>() {
+            String[] strings = { "1", "2", "3", "4" };
+            public int getSize() { return strings.length; }
+            public String getElementAt(int i) { return strings[i]; }
+        });
+        G2Quarter.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
+            public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
+                G2QuarterValueChanged(evt);
+            }
+        });
+        G2QuarterSP.setViewportView(G2Quarter);
+
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridy = 1;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
+        group2.add(G2QuarterSP, gridBagConstraints);
+
+        G2QuarterCBox.setText(bundle.getString("labels.all")); // NOI18N
+        G2QuarterCBox.addItemListener(new java.awt.event.ItemListener() {
+            public void itemStateChanged(java.awt.event.ItemEvent evt) {
+                G2QuarterCBoxAllSprintsStateChanged(evt);
+            }
+        });
+        G2QuarterCBox.addChangeListener(new javax.swing.event.ChangeListener() {
+            public void stateChanged(javax.swing.event.ChangeEvent evt) {
+                G2QuarterCBoxStateChanged(evt);
+            }
+        });
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridy = 1;
+        group2.add(G2QuarterCBox, gridBagConstraints);
+
+        jTabbedPane1.addTab(bundle.getString("group2.title"), group2); // NOI18N
+
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 0;
+        gridBagConstraints.gridheight = 10;
+        gridBagConstraints.ipadx = 392;
+        gridBagConstraints.ipady = 197;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        gridBagConstraints.insets = new java.awt.Insets(0, 6, 27, 6);
+        getContentPane().add(jTabbedPane1, gridBagConstraints);
+        jTabbedPane1.getAccessibleContext().setAccessibleName("Group1");
+
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridy = 11;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
+        gridBagConstraints.ipady = 15;
+        getContentPane().add(progressBar, gridBagConstraints);
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
     private void AllTeamsStateChanged(java.awt.event.ItemEvent evt) {//GEN-FIRST:event_AllTeamsStateChanged
         final boolean enabled = evt.getStateChange() == ItemEvent.DESELECTED;
-        Team.setEnabled(enabled);
+        G1Team.setEnabled(enabled);
         getContentPane().repaint();
+        updateG1BtnEnabledStatus();
     }//GEN-LAST:event_AllTeamsStateChanged
 
     private void AllSprintsStateChanged(java.awt.event.ItemEvent evt) {//GEN-FIRST:event_AllSprintsStateChanged
         final boolean enabled = evt.getStateChange() == ItemEvent.DESELECTED;
-//        log.info("AllSprintsStateChanged to "+enabled);
-        Sprint.setEnabled(enabled);
+        G1Sprint.setEnabled(enabled);
         getContentPane().repaint();
+        updateG1BtnEnabledStatus();
     }//GEN-LAST:event_AllSprintsStateChanged
-
-    private void DatabaseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_DatabaseBtnActionPerformed
+    private void G1DatabaseBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_G1DatabaseBtnActionPerformed
 //        log.info("Finding out stats for Data base ...");
-        List<String> teamNames = TeamCBox.isSelected()
-                ? getTeamNames()
-                : Team.getSelectedValuesList();
-        List<Integer> sprints = SprintCBox.isSelected()
-                ? IntStream.range(1, 27).boxed().collect(toList())
-                : new LinkedList<Integer>(Sprint.getSelectedValuesList().stream().map(Integer::parseInt).collect(toList()));
-
-        String filePath = "";
-        try {
-            login();
-            final File outputFolder = new File("lib/antsm/output/");
-            if (!outputFolder.exists()) {
-                outputFolder.mkdir();
-            }
-            String slash = System.getProperty("file.separator");
-            long suffix = System.currentTimeMillis();
-            filePath = outputFolder.getAbsoluteFile() + slash + "output_" + suffix + ".xlsx";
-            File f = new File(filePath);
-            if (f.exists()) {
-                f.delete();
-            }
-            buildDatabaseWB(filePath, teamNames, sprints);
-        } catch (Exception ex) {
-            log.log(Level.SEVERE, null, ex);
-        } finally {
-            logout();
-            log.info("end of operation");
-            JOptionPane.showMessageDialog(null, "Report saved to " + filePath);
+        if (procRunning) {
+            String title = G1DatabaseBtn.getActionCommand();
+            promptRunningProc(title);
+            return;
         }
-    }//GEN-LAST:event_DatabaseBtnActionPerformed
+        procRunning = true;
+        G1DatabaseBtn.setEnabled(false);
+        getContentPane().repaint();
+        List<String> teamNames = G1TeamCBox.isSelected()
+                ? getTeamNames()
+                : G1Team.getSelectedValuesList();
+        List<Integer> sprints = G1SprintCBox.isSelected()
+                ? IntStream.range(1, 27).boxed().collect(toList())
+                : new LinkedList<Integer>(G1Sprint.getSelectedValuesList().stream().map(Integer::parseInt).collect(toList()));
+        SwingWorker<File, Integer> worker = new SwingWorker<File, Integer>() {
+            @Override
+            protected File doInBackground() throws Exception {
+                String filePath = "";
+                try {
+                    login();
+                    File f = prepareOutputFile();
+                    filePath = f.getAbsolutePath();
+                    buildDatabaseWB(filePath, teamNames, sprints, this);
+                    return f;
+                } catch (Exception ex) {
+                    log.log(Level.SEVERE, null, ex);
+                    return null;
+                } finally {
+                    logout();
+                    log.info("end of operation");
+                    JOptionPane.showMessageDialog(null, "Report saved to " + filePath);
+                    G1DatabaseBtn.setEnabled(true);
+                    procRunning = false;
+                    resetProgressBar();
+                }
+            }
+        };
+        worker.addPropertyChangeListener(new PropertyChangeListener() {
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                if (evt.getPropertyName().equals("progress")) {
+                    progressBar.setValue((Integer) evt.getNewValue());
+                    getContentPane().repaint();
+                }
+            }
+        });
+        worker.execute();
+    }//GEN-LAST:event_G1DatabaseBtnActionPerformed
 
-    private void TeamValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_TeamValueChanged
-        updateBtnEnabledStatus();
-    }//GEN-LAST:event_TeamValueChanged
+    private void promptRunningProc(String title) throws HeadlessException {
+        ResourceBundle bundle = java.util.ResourceBundle.getBundle("antsm");
+        String msg = bundle.getString("button.runningprocess");
+        JOptionPane.showMessageDialog(null, msg, title, JOptionPane.ERROR_MESSAGE);
+    }
 
-    private void SprintValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_SprintValueChanged
-        updateBtnEnabledStatus();
-    }//GEN-LAST:event_SprintValueChanged
+    private void G1TeamValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_G1TeamValueChanged
+        updateG1BtnEnabledStatus();
+    }//GEN-LAST:event_G1TeamValueChanged
 
-    private void TeamCBoxStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_TeamCBoxStateChanged
-        updateBtnEnabledStatus();
-    }//GEN-LAST:event_TeamCBoxStateChanged
+    private void G1SprintValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_G1SprintValueChanged
+        updateG1BtnEnabledStatus();
+    }//GEN-LAST:event_G1SprintValueChanged
 
-    private void SprintCBoxStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_SprintCBoxStateChanged
-        updateBtnEnabledStatus();
-    }//GEN-LAST:event_SprintCBoxStateChanged
+    private void G1TeamCBoxStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_G1TeamCBoxStateChanged
+        updateG1BtnEnabledStatus();
+    }//GEN-LAST:event_G1TeamCBoxStateChanged
+
+    private void G1SprintCBoxStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_G1SprintCBoxStateChanged
+        updateG1BtnEnabledStatus();
+    }//GEN-LAST:event_G1SprintCBoxStateChanged
 
     private void formWindowClosed(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosed
         PoiHelper.destroy();
@@ -301,6 +433,100 @@ public class ControlPanel extends javax.swing.JFrame {
 
     }//GEN-LAST:event_formWindowOpened
 
+    private void G2TeamValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_G2TeamValueChanged
+        updateG2BtnEnabledStatus();
+    }//GEN-LAST:event_G2TeamValueChanged
+
+    private void G2TeamCBoxAllTeamsStateChanged(java.awt.event.ItemEvent evt) {//GEN-FIRST:event_G2TeamCBoxAllTeamsStateChanged
+        updateG2BtnEnabledStatus();
+    }//GEN-LAST:event_G2TeamCBoxAllTeamsStateChanged
+
+    private void G2TeamCBoxStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_G2TeamCBoxStateChanged
+        updateG2BtnEnabledStatus();
+    }//GEN-LAST:event_G2TeamCBoxStateChanged
+
+    private void G2BBQCBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_G2BBQCBtnActionPerformed
+        if (procRunning) {
+            String title = G2BBQCBtn.getActionCommand();
+            promptRunningProc(title);
+            return;
+        }
+        procRunning = true;
+        G2BBQCBtn.setEnabled(false);
+        getContentPane().repaint();
+        SwingWorker<File, Integer> worker = new SwingWorker<File, Integer>() {
+            @Override
+            protected File doInBackground() throws Exception {
+                List<String> teamNames = G2TeamCBox.isSelected()
+                        ? getTeamNames()
+                        : G2Team.getSelectedValuesList();
+                List<Integer> quarters = G2QuarterCBox.isSelected()
+                        ? IntStream.range(1, 5).boxed().collect(toList())
+                        : new LinkedList<Integer>(G2Quarter.getSelectedValuesList().stream().map(Integer::parseInt).collect(toList()));
+
+//               log.info("teams : "+teamNames.stream().collect(Collectors.joining(",")));
+//               log.info("quarters: "+quarters.stream()
+//                       .map(Object::toString)
+//                       .collect(Collectors.joining(",")));
+                String filePath = "";
+                try {
+                    login();
+                    File f = prepareOutputFile();
+                    filePath = f.getAbsolutePath();
+                    PoiHelper.QCbuildWB(filePath, teamNames, quarters, this);
+                    return f;
+                } catch (Exception ex) {
+                    log.log(Level.SEVERE, null, ex);
+                    return null;
+                } finally {
+                    logout();
+                    log.info("end of operation");
+                    JOptionPane.showMessageDialog(null, "Report saved to " + filePath);
+                    G2BBQCBtn.setEnabled(true);
+                    resetProgressBar();
+                    procRunning = false;
+                }
+            }
+        };
+        worker.addPropertyChangeListener(new PropertyChangeListener() {
+            @Override
+            public void propertyChange(PropertyChangeEvent evt) {
+                if (evt.getPropertyName().equals("progress")) {
+                    progressBar.setValue((int) evt.getNewValue());
+                    getContentPane().repaint();
+                }
+            }
+        });
+        worker.execute();
+    }//GEN-LAST:event_G2BBQCBtnActionPerformed
+
+    private File prepareOutputFile() {
+        final File outputFolder = new File("lib/antsm/output/");
+        if (!outputFolder.exists()) {
+            outputFolder.mkdir();
+        }
+        String slash = System.getProperty("file.separator");
+        long suffix = System.currentTimeMillis();
+        String filePath = outputFolder.getAbsoluteFile() + slash + "output_" + suffix + ".xlsx";
+        File f = new File(filePath);
+        if (f.exists()) {
+            f.delete();
+        }
+        return f;
+    }
+
+    private void G2QuarterValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_G2QuarterValueChanged
+        updateG2BtnEnabledStatus();
+    }//GEN-LAST:event_G2QuarterValueChanged
+
+    private void G2QuarterCBoxAllSprintsStateChanged(java.awt.event.ItemEvent evt) {//GEN-FIRST:event_G2QuarterCBoxAllSprintsStateChanged
+        updateG2BtnEnabledStatus();
+    }//GEN-LAST:event_G2QuarterCBoxAllSprintsStateChanged
+
+    private void G2QuarterCBoxStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_G2QuarterCBoxStateChanged
+        updateG2BtnEnabledStatus();
+    }//GEN-LAST:event_G2QuarterCBoxStateChanged
+
     private void login() throws InvalidParamException, IOException, InvalidVarNameException {
         //-login to Confluence
         ConfluenceHelper.login();
@@ -309,17 +535,28 @@ public class ControlPanel extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton DatabaseBtn;
-    private javax.swing.JList<String> Sprint;
-    private javax.swing.JCheckBox SprintCBox;
-    private javax.swing.JLabel SprintL;
-    private javax.swing.JScrollPane SprintSP;
-    private javax.swing.JList<String> Team;
-    private javax.swing.JCheckBox TeamCBox;
-    private javax.swing.JLabel TeamL;
-    private javax.swing.JScrollPane TeamSP;
-    private javax.swing.JPanel jPanel1;
+    private javax.swing.JButton G1DatabaseBtn;
+    private javax.swing.JList<String> G1Sprint;
+    private javax.swing.JCheckBox G1SprintCBox;
+    private javax.swing.JLabel G1SprintL;
+    private javax.swing.JScrollPane G1SprintSP;
+    private javax.swing.JList<String> G1Team;
+    private javax.swing.JCheckBox G1TeamCBox;
+    private javax.swing.JLabel G1TeamL;
+    private javax.swing.JScrollPane G1TeamSP;
+    private javax.swing.JButton G2BBQCBtn;
+    private javax.swing.JList<String> G2Quarter;
+    private javax.swing.JCheckBox G2QuarterCBox;
+    private javax.swing.JLabel G2QuarterL;
+    private javax.swing.JScrollPane G2QuarterSP;
+    private javax.swing.JList<String> G2Team;
+    private javax.swing.JCheckBox G2TeamCBox;
+    private javax.swing.JLabel G2TeamL;
+    private javax.swing.JScrollPane G2TeamSP;
+    private javax.swing.JPanel group1;
+    private javax.swing.JPanel group2;
     private javax.swing.JTabbedPane jTabbedPane1;
+    private javax.swing.JProgressBar progressBar;
     // End of variables declaration//GEN-END:variables
 
     private void logout() {
@@ -331,13 +568,28 @@ public class ControlPanel extends javax.swing.JFrame {
         }
     }
 
-    private void updateBtnEnabledStatus() {
+    private void updateG1BtnEnabledStatus() {
         boolean enabled
-                = (TeamCBox.isSelected() || Team.getSelectedIndex() > -1)
-                && (SprintCBox.isSelected() || Sprint.getSelectedIndex() > -1);
-        for (JButton btn : new JButton[]{DatabaseBtn}) {
+                = (G1TeamCBox.isSelected() || G1Team.getSelectedIndex() > -1)
+                && (G1SprintCBox.isSelected() || G1Sprint.getSelectedIndex() > -1);
+        for (JButton btn : new JButton[]{G1DatabaseBtn}) {
             btn.setEnabled(enabled);
         }
+        getContentPane().repaint();
+    }
+
+    private void updateG2BtnEnabledStatus() {
+        boolean enabled
+                = (G2TeamCBox.isSelected() || G2Team.getSelectedIndex() > -1)
+                && (G2QuarterCBox.isSelected() || G2Quarter.getSelectedIndex() > -1);
+        for (JButton btn : new JButton[]{G2BBQCBtn}) {
+            btn.setEnabled(enabled);
+        }
+        getContentPane().repaint();
+    }
+
+    private void resetProgressBar() {
+        progressBar.setValue(0);
         getContentPane().repaint();
     }
 

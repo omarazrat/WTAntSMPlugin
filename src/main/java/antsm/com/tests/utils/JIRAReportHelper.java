@@ -61,7 +61,7 @@ public final class JIRAReportHelper {
         /**
          * Para reconocer el tipo de contenido según la frase
          */
-        String getContent() {
+        public String getContent() {
             switch (this) {
                 case COMPLETED_ISSUES:
                     return "Completed Issues";
@@ -75,7 +75,7 @@ public final class JIRAReportHelper {
             }
         }
 
-        static TABLE_TYPE byHeader(String header) {
+        public static TABLE_TYPE byHeader(String header) {
             for (TABLE_TYPE type : values()) {
                 if (type.getContent().equals(header)) {
                     return type;
@@ -252,13 +252,13 @@ public final class JIRAReportHelper {
             }
             WebElement statusCell = row.findElement(statusSelector);
             String status = statusCell.getText();
-            String targetStatus;
+            String targetStatus="";
             switch (desiredStatus) {
                 case IN_PROGRESS:
                     targetStatus = "In Progress";
                     break;
                 case IN_REVIEW:
-                    targetStatus = "In Progress";
+                    targetStatus = "In review";
                     break;
                 case ON_HOLD:
                     targetStatus = "On Hold";
@@ -267,7 +267,7 @@ public final class JIRAReportHelper {
                     targetStatus = "TO DO";
             }
 //            log.log(Level.INFO, "got: {0}, desired: {1}.", new Object[]{status, desiredStatus});
-            if (!status.equals(desiredStatus)) {
+            if (!status.equals(targetStatus.toUpperCase())) {
                 continue;
             }
             total++;

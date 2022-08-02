@@ -88,11 +88,12 @@ public class AntSMUtilites extends AbstractDefaultPluginRunner {
         streamReader.transferTo(ostream);
         streamReader.close();
         ostream.close();
+//        log.info("pwd:" + getJiraPassword());
+//        log.info(" vs //"+parse(getJiraPassword()));
         String instructions = new String(ostream.toByteArray())
                 .replace("{TEAM_URL}", teamName == null ? "" : getCapacityURL(teamName))
                 .replace("{JIRA_USER}", getJiraUser())
                 .replace("{JIRA_PWD}", getJiraPassword());
-//        log.info("instructions:" + instructions);
         run(instructions);
     }
 

@@ -58,6 +58,8 @@ public final class ConfluenceHelper {
 //            log.info(command);
             AntSMUtilites.run(command);
 //            log.info("done");
+            home = sysProps.getProperty("CONFLUENCE.tpp.root");
+            command = "set={\"name\":\"CONFLUENCE_TPP_ROOT\",\"value\":\""+home+"\"}";
         } catch (Exception ex) {
             log.log(Level.SEVERE, null, ex);
         }
@@ -99,7 +101,7 @@ public final class ConfluenceHelper {
         }
         File capacity = capacityFileOpt.get();
 //        log.info("reading"+capacity.getAbsolutePath());
-        capacity.deleteOnExit();
+//        capacity.deleteOnExit();
         //Read the XLXS file
         XSSFWorkbook wb = new XSSFWorkbook(capacity);
         for (Integer sprint : sprints) {
@@ -149,6 +151,7 @@ public final class ConfluenceHelper {
             }
         }
         wb.close();
+        capacity.delete();
         return resp;
     }
 

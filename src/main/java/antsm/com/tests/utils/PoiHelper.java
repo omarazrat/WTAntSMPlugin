@@ -17,6 +17,8 @@ import antsm.com.tests.logic.AbstractTeamSprintInfo;
 import antsm.com.tests.logic.CapacityInfo;
 import antsm.com.tests.logic.JIRAReportInfo;
 import antsm.com.tests.logic.SPReportInfo;
+import antsm.com.tests.logic.Ticket;
+import antsm.com.tests.plugins.AntSMUtilites;
 import static antsm.com.tests.plugins.AntSMUtilites.getConfigFile;
 import static antsm.com.tests.utils.ConfluenceHelper.getCapacities;
 import static antsm.com.tests.utils.ConfluenceHelper.getCapacitiesCache;
@@ -28,31 +30,41 @@ import static antsm.com.tests.utils.JIRAReportHelper.inJIRARCache;
 import static antsm.com.tests.utils.PythonReportHelper.getSPRCache;
 import static antsm.com.tests.utils.PythonReportHelper.getSPReports;
 import static antsm.com.tests.utils.PythonReportHelper.inSPRCache;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+import javax.swing.SwingWorker;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
-import org.apache.poi.hssf.util.HSSFColor;
+import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Hyperlink;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.model.StylesTable;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
-import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 
 /**
  *
@@ -64,29 +76,31 @@ public final class PoiHelper {
     private static Properties sysProps;
     private static int year;
     private static HashMap<Integer, Integer> sprintxquarter = new HashMap<>();
+    private static HashMap<Integer, String> quarterQC = new HashMap<>();
 
     public static void init() {
         sysProps = getConfigFile();
-        fillSpQuarters();
+        fillProfileInfo();
         year = Integer.parseInt(sysProps.getProperty("year", "0"));
 //        log.info("year:" + year);
     }
 
-    public static void destroy(){
+    public static void destroy() {
         sprintxquarter.clear();
     }
-    
-    public static Workbook buildDatabaseWB(String destPath, List<String> teamNames, List<Integer> sprints) throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException {
+
+    public static Workbook buildDatabaseWB(String destPath, List<String> teamNames, List<Integer> sprints, SwingWorker worker) throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException {
         SXSSFWorkbook workbook = new SXSSFWorkbook(100);
-        buildDatabase(workbook, teamNames, sprints);
+        buildDatabase(workbook, teamNames, sprints, worker);
         FileOutputStream out = new FileOutputStream(destPath);
         workbook.write(out);
         workbook.close();
         out.close();
+        worker.firePropertyChange("progress", 95, 100);
         return workbook;
     }
 
-    private static Sheet buildDatabase(Workbook wb, List<String> teamNames, List<Integer> sprints) throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException {
+    private static Sheet buildDatabase(Workbook wb, List<String> teamNames, List<Integer> sprints, SwingWorker worker) throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException {
         int rownum = 0, cellnum = 0;
         Sheet sheet = wb.createSheet("Data Base");
         Row row = sheet.createRow(rownum++);
@@ -96,19 +110,21 @@ public final class PoiHelper {
                     "Year", "Quarter", "Sprint", "Estimated", "Completed", "Removed", "Added", "Story Points Variance",
                     "Completion Ratio", "Total Tickets", "Completed Tickets", "Effective hours", "To Do", "In Progress", "In Review", "On hold", "Developers per sprint", "Team Coefficient"}) {
             Cell cell = row.createCell(cellnum++);
+            IndexedColors color = IndexedColors.BRIGHT_GREEN;
             cell.setCellValue(header);
-            StylesTable stylesTable = new StylesTable();
-            XSSFCellStyle cellStyle = new XSSFCellStyle(stylesTable);
-            XSSFFont font = new XSSFFont();
-            font.setBold(true);
-            cellStyle.setFont(font);
-            cellStyle.setFillBackgroundColor(IndexedColors.BRIGHT_GREEN.getIndex());
+            XSSFCellStyle cellStyle = buildHeaderStyle(color);
             cell.setCellStyle(cellStyle);
         }
 
         sheet.createFreezePane(1, 1);
         try {
+            worker.firePropertyChange("progress", 0, 5);
+            int delta = 90 / teamNames.size();
+//            log.info("delta:"+delta);
+            int total = 5;
             for (String teamName : teamNames) {
+                worker.firePropertyChange("progress", total - delta, total);
+                total += delta;
                 //Bajemos el capacity...
                 final List<CapacityInfo> capacities
                         = inCapacitiesCache(teamName, sprints)
@@ -164,10 +180,11 @@ public final class PoiHelper {
                     } else {
                         jrInfo = JIRAMatch.get();
                     }
-                    if(spreportInfo==null &&
-                            jrInfo==null &&
-                            capacityInfo==null)
+                    if (spreportInfo == null
+                            && jrInfo == null
+                            && capacityInfo == null) {
                         continue;
+                    }
                     row = sheet.createRow(rownum++);
                     row.createCell(cellnum++, CellType.STRING).setCellValue(teamName);
                     row.createCell(cellnum++, CellType.NUMERIC).setCellValue(year);
@@ -214,6 +231,17 @@ public final class PoiHelper {
         return sheet;
     }
 
+    private static XSSFCellStyle buildHeaderStyle(IndexedColors color) {
+        StylesTable stylesTable = new StylesTable();
+        XSSFCellStyle cellStyle = new XSSFCellStyle(stylesTable);
+        XSSFFont font = new XSSFFont();
+        font.setBold(true);
+        cellStyle.setFont(font);
+        cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        cellStyle.setFillBackgroundColor(color.getIndex());
+        return cellStyle;
+    }
+
     private static int getYear() {
         return Integer.parseInt(sysProps.getProperty("year"));
     }
@@ -222,7 +250,7 @@ public final class PoiHelper {
         return sprintxquarter.get(sprint);
     }
 
-    private static void fillSpQuarters() {
+    private static void fillProfileInfo() {
         int quarter = 1;
         int nextQrSprint = Integer.parseInt(sysProps.getProperty("quarter." + (quarter + 1) + ".sprint", "-1"));
         for (int sprint = 1; sprint <= 26; sprint++) {
@@ -233,5 +261,189 @@ public final class PoiHelper {
             sprintxquarter.put(sprint, quarter);
 //            log.log(Level.INFO, "sprint:{0}, quarter:{1}", new Object[]{sprint, quarter});
         }
+        for (quarter = 1; quarter <= 4; quarter++) {
+            String bbUrl = sysProps.getProperty("bug bash.q" + quarter);
+            quarterQC.put(quarter, bbUrl);
+        }
+    }
+
+    public static Workbook QCbuildWB(String destPath, List<String> teamNames, List<Integer> quarters, SwingWorker worker) throws FileNotFoundException, IOException, InvalidVarNameException, InvalidParamException {
+        SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+        FileOutputStream out = new FileOutputStream(destPath);
+        QCbuildSheet(workbook, teamNames, quarters, worker);
+        workbook.write(out);
+        workbook.close();
+        out.close();
+        return workbook;
+    }
+
+    private static Sheet QCbuildSheet(Workbook wb, List<String> teamNames, List<Integer> quarters, SwingWorker worker) throws IOException, InvalidVarNameException, InvalidParamException {
+        Sheet resp = wb.createSheet("Quality Check");
+        List<Ticket> reportedBugs = new LinkedList<>();
+        List reportedTestCases = null;
+        int rownum = 0, cellnum = 0;
+        CreationHelper creationHelper = wb.getCreationHelper();
+        reportedBugs.addAll(QCReportedBugsData(resp, quarters, teamNames, creationHelper, worker));
+        worker.firePropertyChange("progress", 95, 100);
+        return resp;
+    }
+
+    private static void QCGetRACases(List<String> epics,SwingWorker worker) throws IOException, InvalidVarNameException, InvalidParamException{
+        AntSMUtilites.run("go={[:CONFLUENCE_TPP_ROOT]}");
+    }
+    
+    private static List<Ticket> QCReportedBugsData(Sheet sheet, List<Integer> quarters, List<String> teamNames, CreationHelper creationHelper, SwingWorker worker) throws IOException, InvalidVarNameException, InvalidParamException {
+//        log.info("Teams: "+teamNames.stream().collect(joining(",")));
+//        log.info("Quarters: "+quarters.stream().map(Object::toString).collect(joining(",")));
+        final WebDriver driver = AntSMUtilites.getDriver();
+        int rownum = 0, cellnum = 0;
+        List<Ticket> reportedBugs = new LinkedList<>();
+        Row row = sheet.createRow(rownum++);
+        XSSFCellStyle style = buildHeaderStyle(IndexedColors.GREEN);
+        Cell cell = row.createCell(cellnum);
+        cell.setCellValue("Reported Bugs in Bug bash");
+        row.setRowStyle(style);
+        sheet.addMergedRegion(new CellRangeAddress(rownum - 1, rownum - 1, 0, 6));
+        row = sheet.createRow(rownum++);
+        //headers
+        for (String header
+                : new String[]{"Team",
+                    "Quarter", "Key", "Type", "Asignee", "Fix Engineers", "Status"}) {
+            cell = row.createCell(cellnum++);
+            IndexedColors color = IndexedColors.BRIGHT_GREEN;
+            cell.setCellValue(header);
+            XSSFCellStyle cellStyle = buildHeaderStyle(color);
+            cell.setCellStyle(cellStyle);
+        }
+
+        row.setRowStyle(style);
+        sheet.createFreezePane(1, 2);
+
+        int delta = 80 / (quarters.size() * teamNames.size());
+//        log.info("delta: "+delta);
+        double total = 5d;
+        for (Integer quarter : quarters) {
+            String url = quarterQC.get(quarter);
+            AntSMUtilites.run("go={" + url + "}\n"
+                    + "pause={\"time\":\"[:longdelay]\"}");
+            List<WebElement> headers = driver.findElements(By.cssSelector("li.menu-item > a.tab-nav-link"));
+            int headersCount = headers.size();
+            if (headersCount == 0) {
+                log.severe("No info found for quarter " + quarter + " in " + url);
+            }
+            double minidelta = 15d / headersCount;
+            for (int i = 0; i < headersCount; i++) {
+                worker.firePropertyChange("progress", new Double(total - minidelta).intValue(), new Double(total).intValue());
+                total += minidelta;
+                String selector = "li.menu-item:nth-of-type(" + (i + 1) + ") > a.tab-nav-link";
+                AntSMUtilites.run("wait={\"selector\":\"" + selector + "\"}");
+                WebElement header = driver.findElement(By.cssSelector(selector));
+                header.click();
+                String title = header.getText();
+                log.log(Level.INFO, "reading header {0} {1} of {2}", new Object[]{title, (i + 1), headersCount});
+                AntSMUtilites.run("pause={\"time\":\"[:longdelay]\"}");
+                List<WebElement> tables = driver.findElements(By.cssSelector("table.aui"));
+                if (tables.size() <= i) {
+                    break;
+                }
+                WebElement table = tables.get(i);
+                reportedBugs.addAll(collectBugBashes(title, table));
+                AntSMUtilites.run("go={" + url + "}\n"
+                        + "pause={\"time\":\"[:longdelay]\"}");
+            }
+
+            total = 15;
+
+            for (String teamName : teamNames) {
+                worker.firePropertyChange("progress", new Double(total - delta).intValue(), new Double(total).intValue());
+                total += delta;
+                List<Ticket> teamTickets = reportedBugs.stream()
+                        .filter(t -> t.matchesTeam(teamName))
+                        .collect(toList());
+                for (Ticket teamTicket : teamTickets) {
+                    cellnum = 0;
+                    row = sheet.createRow(rownum++);
+                    row.createCell(cellnum++).setCellValue(teamName);
+                    row.createCell(cellnum++).setCellValue(quarter);
+                    //Key
+                    cell = row.createCell(cellnum++);
+                    Hyperlink link = creationHelper.createHyperlink(HyperlinkType.URL);
+                    link.setAddress(teamTicket.getURL());
+                    cell.setHyperlink(link);
+                    cell.setCellValue(teamTicket.getKey());
+
+                    row.createCell(cellnum++).setCellValue(teamTicket.getType().name());
+                    row.createCell(cellnum++).setCellValue(teamTicket.getAssignee());
+                    row.createCell(cellnum++).setCellValue(teamTicket.getFixEngineers().stream().collect(joining(",")));
+                    row.createCell(cellnum++).setCellValue(teamTicket.getStatus());
+                }
+            }
+        }
+        return reportedBugs;
+    }
+
+    private static List<Ticket> collectBugBashes(String title, WebElement table) throws IOException, InvalidVarNameException, InvalidParamException {
+        //Clave 	Resumen 	T 	Creado 	Actualizado 	Fecha de entrega 	Asignado 	Informante 	P 	Estado 	descripción
+        List<Ticket> resp = new LinkedList<>();
+        List<WebElement> rows = null;
+        try {
+            rows = table.findElements(By.tagName("tr"));
+        }//org.openqa.selenium.StaleElementReferenceException: stale element reference: element is not attached to the page document
+        catch (Exception e) {
+            log.log(Level.SEVERE, "error reading table {0}", title);
+            return resp;
+        }
+        log.log(Level.INFO, "{0} in table {1}", new Object[]{rows.size(), title});
+        for (WebElement row : rows) {
+            List<WebElement> cells = row.findElements(By.tagName("td"));
+            if (cells.isEmpty()) {
+                continue;
+            }
+            int index = 0;
+            Ticket ticket = new Ticket();
+            WebElement cell = cells.get(index++);
+            WebElement anchor = cell.findElement(By.tagName("a"));
+            String url = anchor.getAttribute("href");
+            String key = anchor.getText();
+            ticket.setKey(key);
+            ticket.setURL(url);
+//            log.info("got:" + ticket.toString());
+            resp.add(ticket);
+        }
+        //reads ticket by ticket
+        for (Ticket ticket : resp) {
+//            log.info("got:" + ticket.toString());
+            AntSMUtilites.run("go={" + ticket.getURL() + "}\n"
+                    + "pause={\"time\":\"[:longdelay]\"}");
+            final WebDriver driver = AntSMUtilites.getDriver();
+            WebElement typeSpan = driver.findElement(By.cssSelector("#type-val"));
+            ticket.setType(Ticket.TYPE.valueOf(typeSpan.getText().toUpperCase().trim()));
+            WebElement assigneeSpan = driver.findElement(By.cssSelector("#assignee-val"));
+            ticket.setAssignee(assigneeSpan.getText());
+            WebElement statusSpan = driver.findElement(By.cssSelector(".jira-issue-status-lozenge"));
+            ticket.setStatus(statusSpan.getText());
+            WebElement epicLSpan = driver.findElement(By.cssSelector(".aui-label"));
+            String epicCode = epicLSpan.getAttribute("href");
+            int idx = epicCode.indexOf("/browse/");
+            if (idx > -1) {
+                epicCode = epicCode.substring(idx);
+            }
+            ticket.setEpic(epicCode);
+            //fix engineers
+            List<WebElement> fixerSpans = driver.findElements(By.cssSelector("span.tinylink > span"));
+            List<String> fixers = new LinkedList<>();
+            for (WebElement fixerSpan : fixerSpans) {
+                fixers.add(fixerSpan.getText());
+            }
+            ticket.setFixEngineers(fixers);
+            //team(s)
+            List<WebElement> teamSpans = driver.findElements(By.cssSelector("#customfield_16166-field > span"));
+            List<String> teams = new LinkedList<>();
+            for (WebElement teamSpan : teamSpans) {
+                teams.add(teamSpan.getText());
+            }
+            ticket.setTeams(teams);
+        }
+        return resp;
     }
 }
