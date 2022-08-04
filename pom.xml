@@ -35,33 +35,6 @@
                     </descriptorRefs>
                 </configuration>
             </plugin>
-<!--            Copy the full jar with dependencies to my webAppTester lib folder. 
-            Remove this-->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>3.2.0</version>
-                <executions>
-                    <execution>
-                        <id>copy-full-jar</id>
-                        <phase>install</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <resources>
-                                <resource>
-                                    <directory>target</directory>
-                                    <includes>
-                                        <include>${project.artifactId}-${project.version}-${jar-with-dependencies-name}.jar</include>
-                                    </includes>
-                                </resource>
-                            </resources>
-                            <outputDirectory>../WebAppTester/lib</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>        
         </plugins>
 
     </build>
