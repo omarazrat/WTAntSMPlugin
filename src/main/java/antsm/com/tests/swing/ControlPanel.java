@@ -133,8 +133,8 @@ public class ControlPanel extends javax.swing.JFrame {
 
         setDefaultCloseOperation(javax.swing.WindowConstants.HIDE_ON_CLOSE);
         addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosed(java.awt.event.WindowEvent evt) {
-                formWindowClosed(evt);
+            public void windowClosing(java.awt.event.WindowEvent evt) {
+                formWindowClosing(evt);
             }
             public void windowOpened(java.awt.event.WindowEvent evt) {
                 formWindowOpened(evt);
@@ -420,15 +420,6 @@ public class ControlPanel extends javax.swing.JFrame {
         updateG1BtnEnabledStatus();
     }//GEN-LAST:event_G1SprintCBoxStateChanged
 
-    private void formWindowClosed(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosed
-        PoiHelper.destroy();
-        PythonReportHelper.destroy();
-        JIRAReportHelper.destroy();
-        ConfluenceHelper.destroy();
-        AntSMUtilites.destroy();
-        dispose();
-    }//GEN-LAST:event_formWindowClosed
-
     private void formWindowOpened(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowOpened
 
     }//GEN-LAST:event_formWindowOpened
@@ -526,6 +517,16 @@ public class ControlPanel extends javax.swing.JFrame {
     private void G2QuarterCBoxStateChanged(javax.swing.event.ChangeEvent evt) {//GEN-FIRST:event_G2QuarterCBoxStateChanged
         updateG2BtnEnabledStatus();
     }//GEN-LAST:event_G2QuarterCBoxStateChanged
+
+    private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
+        log.info("closing window");
+        PoiHelper.destroy();
+        PythonReportHelper.destroy();
+        JIRAReportHelper.destroy();
+        ConfluenceHelper.destroy();
+        AntSMUtilites.destroy();
+        dispose();
+    }//GEN-LAST:event_formWindowClosing
 
     private void login() throws InvalidParamException, IOException, InvalidVarNameException {
         //-login to Confluence

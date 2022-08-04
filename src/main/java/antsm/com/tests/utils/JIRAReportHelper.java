@@ -14,6 +14,7 @@
 package antsm.com.tests.utils;
 
 import antsm.com.tests.logic.JIRAReportInfo;
+import antsm.com.tests.logic.Ticket;
 import antsm.com.tests.plugins.AntSMUtilites;
 import static antsm.com.tests.plugins.AntSMUtilites.getConfigFile;
 import static antsm.com.tests.plugins.AntSMUtilites.runTemplate;
@@ -171,11 +172,11 @@ public final class JIRAReportHelper {
                     WebElement table = tables.get(i);
                     TABLE_TYPE tableType = tableTypes.get(i);
 //                    log.info("table of type "+tableType);
-                    if(tableType==null){
+                    if (tableType == null) {
                         log.log(Level.SEVERE, "table not matching any type found with index {0}{1}!", new Object[]{i, 1});
                         continue;
                     }
-                    if(tableType.equals(COMPLETED_OUTSIDE_SPRINT)){
+                    if (tableType.equals(COMPLETED_OUTSIDE_SPRINT)) {
                         log.log(Level.INFO, "skipping {0} table. Team {1} sprint {2}", new Object[]{tableType.getContent(), teamName, sprint});
                         continue;
                     }
@@ -252,7 +253,7 @@ public final class JIRAReportHelper {
             }
             WebElement statusCell = row.findElement(statusSelector);
             String status = statusCell.getText();
-            String targetStatus="";
+            String targetStatus = "";
             switch (desiredStatus) {
                 case IN_PROGRESS:
                     targetStatus = "In Progress";
@@ -342,5 +343,74 @@ public final class JIRAReportHelper {
 
     public static String getJiraPassword() {
         return JIRA_PWD;
+    }
+
+    public static List<Ticket> collectBugBashes(String title, WebElement table) throws IOException, InvalidVarNameException, InvalidParamException {
+        //Clave 	Resumen 	T 	Creado 	Actualizado 	Fecha de entrega 	Asignado 	Informante 	P 	Estado 	descripción
+        List<Ticket> resp = new LinkedList<>();
+        List<WebElement> rows = null;
+        try {
+            rows = table.findElements(By.tagName("tr"));
+        }//org.openqa.selenium.StaleElementReferenceException: stale element reference: element is not attached to the page document
+        catch (Exception e) {
+            log.log(Level.SEVERE, "error reading table {0}", title);
+            return resp;
+        }
+        log.log(Level.INFO, "{0} in table {1}", new Object[]{rows.size(), title});
+        for (WebElement row : rows) {
+            List<WebElement> cells = row.findElements(By.tagName("td"));
+            if (cells.isEmpty()) {
+                continue;
+            }
+            int index = 0;
+            Ticket ticket = new Ticket();
+            WebElement cell = cells.get(index++);
+            WebElement anchor = cell.findElement(By.tagName("a"));
+            String url = anchor.getAttribute("href");
+            String key = anchor.getText();
+            ticket.setKey(key);
+            ticket.setURL(url);
+//            log.info("got:" + ticket.toString());
+            resp.add(ticket);
+        }
+        //reads ticket by ticket
+        for (Ticket ticket : resp) {
+//            log.info("got:" + ticket.toString());
+            AntSMUtilites.run("go={" + ticket.getURL() + "}\n"
+                    + "pause={\"time\":\"[:longdelay]\"}");
+            final WebDriver driver = AntSMUtilites.getDriver();
+            WebElement typeSpan = driver.findElement(By.cssSelector("#type-val"));
+            ticket.setType(Ticket.TYPE.valueOf(typeSpan.getText().toUpperCase().trim()));
+            WebElement assigneeSpan = driver.findElement(By.cssSelector("#assignee-val"));
+            ticket.setAssignee(assigneeSpan.getText());
+            WebElement statusSpan = driver.findElement(By.cssSelector(".jira-issue-status-lozenge"));
+            ticket.setStatus(statusSpan.getText());
+            String selector = ".aui-label";
+            boolean hasField = !driver.findElements(By.cssSelector(selector)).isEmpty();
+            if (hasField) {
+                WebElement epicLSpan = driver.findElement(By.cssSelector(selector));
+                String epicCode = epicLSpan.getAttribute("href");
+                int idx = epicCode.indexOf("/browse/");
+                if (idx > -1) {
+                    epicCode = epicCode.substring(idx);
+                }
+                ticket.setEpic(epicCode);
+            }
+            //fix engineers
+            List<WebElement> fixerSpans = driver.findElements(By.cssSelector("span.tinylink > span"));
+            List<String> fixers = new LinkedList<>();
+            for (WebElement fixerSpan : fixerSpans) {
+                fixers.add(fixerSpan.getText());
+            }
+            ticket.setFixEngineers(fixers);
+            //team(s)
+            List<WebElement> teamSpans = driver.findElements(By.cssSelector("#customfield_16166-field > span"));
+            List<String> teams = new LinkedList<>();
+            for (WebElement teamSpan : teamSpans) {
+                teams.add(teamSpan.getText());
+            }
+            ticket.setTeams(teams);
+        }
+        return resp;
     }
 }

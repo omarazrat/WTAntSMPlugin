@@ -129,6 +129,7 @@ public class AntSMUtilites extends AbstractDefaultPluginRunner {
 
     public static void destroy() {
         sysProps.clear();
+        actionManager.registerStop(instance);
     }
 
     public static Properties getConfigFile() {

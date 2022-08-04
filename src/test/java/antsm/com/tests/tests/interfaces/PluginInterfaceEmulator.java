@@ -22,6 +22,8 @@ import java.util.logging.Logger;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
 import oa.com.tests.actionrunners.interfaces.PluginInterface;
+import oa.com.tests.actionrunners.interfaces.PluginStoppedListener;
+import oa.com.tests.plugins.AbstractDefaultPluginRunner;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 
@@ -66,6 +68,26 @@ public class PluginInterfaceEmulator implements PluginInterface{
     @Override
     public WebDriver getDriver() {
         return driver;
+    }
+
+    @Override
+    public void registerPluginListener(AbstractDefaultPluginRunner plugin, PluginStoppedListener listener) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    @Override
+    public void registerStart(AbstractDefaultPluginRunner plugin) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    @Override
+    public void registerStop(AbstractDefaultPluginRunner plugin) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    @Override
+    public boolean isRunning(AbstractDefaultPluginRunner plugin) {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
     
 }

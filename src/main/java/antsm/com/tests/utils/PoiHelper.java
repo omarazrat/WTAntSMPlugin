@@ -23,6 +23,7 @@ import static antsm.com.tests.plugins.AntSMUtilites.getConfigFile;
 import static antsm.com.tests.utils.ConfluenceHelper.getCapacities;
 import static antsm.com.tests.utils.ConfluenceHelper.getCapacitiesCache;
 import static antsm.com.tests.utils.ConfluenceHelper.inCapacitiesCache;
+import static antsm.com.tests.utils.JIRAReportHelper.collectBugBashes;
 import static antsm.com.tests.utils.JIRAReportHelper.getJIRAName;
 import static antsm.com.tests.utils.JIRAReportHelper.getJIRARCache;
 import static antsm.com.tests.utils.JIRAReportHelper.getJIRAReports;
@@ -288,13 +289,14 @@ public final class PoiHelper {
         return resp;
     }
 
-    private static void QCGetRACases(List<String> epics,SwingWorker worker) throws IOException, InvalidVarNameException, InvalidParamException{
+    private static void QCGetRACases(List<String> epics, SwingWorker worker) throws IOException, InvalidVarNameException, InvalidParamException {
         AntSMUtilites.run("go={[:CONFLUENCE_TPP_ROOT]}");
     }
-    
+
     private static List<Ticket> QCReportedBugsData(Sheet sheet, List<Integer> quarters, List<String> teamNames, CreationHelper creationHelper, SwingWorker worker) throws IOException, InvalidVarNameException, InvalidParamException {
 //        log.info("Teams: "+teamNames.stream().collect(joining(",")));
 //        log.info("Quarters: "+quarters.stream().map(Object::toString).collect(joining(",")));
+        String JIRA_HOME = AntSMUtilites.parse("[:JIRA_HOME]");
         final WebDriver driver = AntSMUtilites.getDriver();
         int rownum = 0, cellnum = 0;
         List<Ticket> reportedBugs = new LinkedList<>();
@@ -303,12 +305,12 @@ public final class PoiHelper {
         Cell cell = row.createCell(cellnum);
         cell.setCellValue("Reported Bugs in Bug bash");
         row.setRowStyle(style);
-        sheet.addMergedRegion(new CellRangeAddress(rownum - 1, rownum - 1, 0, 6));
+        sheet.addMergedRegion(new CellRangeAddress(rownum - 1, rownum - 1, 0, 7));
         row = sheet.createRow(rownum++);
         //headers
         for (String header
                 : new String[]{"Team",
-                    "Quarter", "Key", "Type", "Asignee", "Fix Engineers", "Status"}) {
+                    "Quarter", "Key", "Epic", "Type", "Asignee", "Fix Engineers", "Status"}) {
             cell = row.createCell(cellnum++);
             IndexedColors color = IndexedColors.BRIGHT_GREEN;
             cell.setCellValue(header);
@@ -324,9 +326,11 @@ public final class PoiHelper {
         double total = 5d;
         for (Integer quarter : quarters) {
             String url = quarterQC.get(quarter);
+            String selector = "li.menu-item > a.tab-nav-link";
             AntSMUtilites.run("go={" + url + "}\n"
-                    + "pause={\"time\":\"[:longdelay]\"}");
-            List<WebElement> headers = driver.findElements(By.cssSelector("li.menu-item > a.tab-nav-link"));
+                    + "pause={\"time\":\"[:longdelay]\"}\n"
+                    + "wait={\"selector\":\"" + selector + "\"}");
+            List<WebElement> headers = driver.findElements(By.cssSelector(selector));
             int headersCount = headers.size();
             if (headersCount == 0) {
                 log.severe("No info found for quarter " + quarter + " in " + url);
@@ -335,7 +339,7 @@ public final class PoiHelper {
             for (int i = 0; i < headersCount; i++) {
                 worker.firePropertyChange("progress", new Double(total - minidelta).intValue(), new Double(total).intValue());
                 total += minidelta;
-                String selector = "li.menu-item:nth-of-type(" + (i + 1) + ") > a.tab-nav-link";
+                selector = "li.menu-item:nth-of-type(" + (i + 1) + ") > a.tab-nav-link";
                 AntSMUtilites.run("wait={\"selector\":\"" + selector + "\"}");
                 WebElement header = driver.findElement(By.cssSelector(selector));
                 header.click();
@@ -371,6 +375,15 @@ public final class PoiHelper {
                     link.setAddress(teamTicket.getURL());
                     cell.setHyperlink(link);
                     cell.setCellValue(teamTicket.getKey());
+                    //Epic
+                    cell = row.createCell(cellnum++);
+                    final String epic = teamTicket.getEpic();
+                    if (epic != null) {
+                        link = creationHelper.createHyperlink(HyperlinkType.URL);
+                        link.setAddress(JIRA_HOME + "/browse/" + epic);
+                        cell.setHyperlink(link);
+                        cell.setCellValue(epic);
+                    }
 
                     row.createCell(cellnum++).setCellValue(teamTicket.getType().name());
                     row.createCell(cellnum++).setCellValue(teamTicket.getAssignee());
@@ -382,68 +395,4 @@ public final class PoiHelper {
         return reportedBugs;
     }
 
-    private static List<Ticket> collectBugBashes(String title, WebElement table) throws IOException, InvalidVarNameException, InvalidParamException {
-        //Clave 	Resumen 	T 	Creado 	Actualizado 	Fecha de entrega 	Asignado 	Informante 	P 	Estado 	descripción
-        List<Ticket> resp = new LinkedList<>();
-        List<WebElement> rows = null;
-        try {
-            rows = table.findElements(By.tagName("tr"));
-        }//org.openqa.selenium.StaleElementReferenceException: stale element reference: element is not attached to the page document
-        catch (Exception e) {
-            log.log(Level.SEVERE, "error reading table {0}", title);
-            return resp;
-        }
-        log.log(Level.INFO, "{0} in table {1}", new Object[]{rows.size(), title});
-        for (WebElement row : rows) {
-            List<WebElement> cells = row.findElements(By.tagName("td"));
-            if (cells.isEmpty()) {
-                continue;
-            }
-            int index = 0;
-            Ticket ticket = new Ticket();
-            WebElement cell = cells.get(index++);
-            WebElement anchor = cell.findElement(By.tagName("a"));
-            String url = anchor.getAttribute("href");
-            String key = anchor.getText();
-            ticket.setKey(key);
-            ticket.setURL(url);
-//            log.info("got:" + ticket.toString());
-            resp.add(ticket);
-        }
-        //reads ticket by ticket
-        for (Ticket ticket : resp) {
-//            log.info("got:" + ticket.toString());
-            AntSMUtilites.run("go={" + ticket.getURL() + "}\n"
-                    + "pause={\"time\":\"[:longdelay]\"}");
-            final WebDriver driver = AntSMUtilites.getDriver();
-            WebElement typeSpan = driver.findElement(By.cssSelector("#type-val"));
-            ticket.setType(Ticket.TYPE.valueOf(typeSpan.getText().toUpperCase().trim()));
-            WebElement assigneeSpan = driver.findElement(By.cssSelector("#assignee-val"));
-            ticket.setAssignee(assigneeSpan.getText());
-            WebElement statusSpan = driver.findElement(By.cssSelector(".jira-issue-status-lozenge"));
-            ticket.setStatus(statusSpan.getText());
-            WebElement epicLSpan = driver.findElement(By.cssSelector(".aui-label"));
-            String epicCode = epicLSpan.getAttribute("href");
-            int idx = epicCode.indexOf("/browse/");
-            if (idx > -1) {
-                epicCode = epicCode.substring(idx);
-            }
-            ticket.setEpic(epicCode);
-            //fix engineers
-            List<WebElement> fixerSpans = driver.findElements(By.cssSelector("span.tinylink > span"));
-            List<String> fixers = new LinkedList<>();
-            for (WebElement fixerSpan : fixerSpans) {
-                fixers.add(fixerSpan.getText());
-            }
-            ticket.setFixEngineers(fixers);
-            //team(s)
-            List<WebElement> teamSpans = driver.findElements(By.cssSelector("#customfield_16166-field > span"));
-            List<String> teams = new LinkedList<>();
-            for (WebElement teamSpan : teamSpans) {
-                teams.add(teamSpan.getText());
-            }
-            ticket.setTeams(teams);
-        }
-        return resp;
-    }
 }
