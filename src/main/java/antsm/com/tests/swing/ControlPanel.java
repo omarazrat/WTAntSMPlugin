@@ -519,7 +519,7 @@ public class ControlPanel extends javax.swing.JFrame {
     }//GEN-LAST:event_G2QuarterCBoxStateChanged
 
     private void formWindowClosing(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowClosing
-        log.info("closing window");
+//        log.info("closing window");
         PoiHelper.destroy();
         PythonReportHelper.destroy();
         JIRAReportHelper.destroy();

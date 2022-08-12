@@ -390,9 +390,10 @@ public final class JIRAReportHelper {
             if (hasField) {
                 WebElement epicLSpan = driver.findElement(By.cssSelector(selector));
                 String epicCode = epicLSpan.getAttribute("href");
-                int idx = epicCode.indexOf("/browse/");
+                final String word = "/browse/";
+                int idx = epicCode.indexOf(word);
                 if (idx > -1) {
-                    epicCode = epicCode.substring(idx);
+                    epicCode = epicCode.substring(idx+word.length());
                 }
                 ticket.setEpic(epicCode);
             }

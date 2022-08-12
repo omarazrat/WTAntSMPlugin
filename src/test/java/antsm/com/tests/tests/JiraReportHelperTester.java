@@ -14,7 +14,7 @@
 package antsm.com.tests.tests;
 
 import antsm.com.tests.plugins.AntSMUtilites;
-import antsm.com.tests.tests.interfaces.PluginInterfaceEmulator;
+import oa.com.tests.actionrunners.interfaces.tests.PluginInterfaceEmulator;
 import antsm.com.tests.utils.JIRAReportHelper;
 import static antsm.com.tests.utils.JIRAReportHelper.TABLE_TYPE.COMPLETED_OUTSIDE_SPRINT;
 import static antsm.com.tests.utils.JIRAReportHelper.getTableRows;

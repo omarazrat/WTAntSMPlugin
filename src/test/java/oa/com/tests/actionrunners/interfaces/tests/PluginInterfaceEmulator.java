@@ -11,7 +11,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  */
-package antsm.com.tests.tests.interfaces;
+package oa.com.tests.actionrunners.interfaces.tests;
 
 import antsm.com.tests.plugins.AntSMUtilites;
 import java.io.File;
@@ -22,7 +22,7 @@ import java.util.logging.Logger;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
 import oa.com.tests.actionrunners.interfaces.PluginInterface;
-import oa.com.tests.actionrunners.interfaces.PluginStoppedListener;
+import oa.com.tests.actionrunners.interfaces.listeners.PluginStoppedListener;
 import oa.com.tests.plugins.AbstractDefaultPluginRunner;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
