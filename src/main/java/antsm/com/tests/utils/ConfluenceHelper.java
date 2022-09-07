@@ -27,6 +27,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
@@ -54,22 +55,22 @@ public final class ConfluenceHelper {
         try {
             String home = sysProps.getProperty("CONFLUENCE.home");
 //            log.info("setting confluence home to "+home);
-            String command = "set={\"name\":\"CONFLUENCE_HOME\",\"value\":\""+home+"\"}";
+            String command = "set={\"name\":\"CONFLUENCE_HOME\",\"value\":\"" + home + "\"}";
 //            log.info(command);
             AntSMUtilites.run(command);
 //            log.info("done");
             home = sysProps.getProperty("CONFLUENCE.tpp.root");
-            command = "set={\"name\":\"CONFLUENCE_TPP_ROOT\",\"value\":\""+home+"\"}";
+            command = "set={\"name\":\"CONFLUENCE_TPP_ROOT\",\"value\":\"" + home + "\"}";
         } catch (Exception ex) {
             log.log(Level.SEVERE, null, ex);
         }
     }
-    
-    public static void destroy(){
+
+    public static void destroy() {
         capacityCache.clear();
     }
 
-    public static List<CapacityInfo> getCapacities(String teamName, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException, InvalidFormatException, OpenXML4JException {
+    public static List<CapacityInfo> getCapacities(String teamName, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException, InvalidFormatException, OpenXML4JException, Exception {
         List<CapacityInfo> resp = new LinkedList<>();
         runTemplate("downloadCapacity.txt", teamName);
         //busca el archivo más reciente descargado.
@@ -139,14 +140,24 @@ public final class ConfluenceHelper {
                     catch (IllegalStateException | NullPointerException ex) {
                         log.severe("Error in sheet " + sheetName + " some results won't appear");
                     }
+//                    El último, acá termina.
                     cinfo.setDevelopers(developers - 1);
+//                    log.info(cinfo.toString());
                     resp.add(cinfo);
                     capacityCache.add(cinfo);
                     break;
                 }
                 final CellStyle rowStyle = row.getRowStyle();
                 if (rowStyle == null || !rowStyle.getHidden()) {
-                    developers++;
+                    String userName = row.getCell(0).getStringCellValue().trim();
+                    try {
+                        Double coefficient = row.getCell(11).getNumericCellValue();
+//                        log.log(Level.INFO, "agregando {0}={1}", new Object[]{userName, coefficient});
+                        cinfo.put(userName, coefficient);
+                        developers++;
+                    } catch (Exception npe) {//fila de encabezados
+                        //log.log(Level.SEVERE, npe.getMessage(), npe);
+                    }
                 }
             }
         }
@@ -161,8 +172,9 @@ public final class ConfluenceHelper {
 //        log.info("vs:");
 //        capacityCache.forEach(c->log.info(c.toString()));
         final Optional<CapacityInfo> cmatch = capacityCache.stream().filter(c -> c.equals(sample)).findFirst();
-        if(cmatch.isEmpty())
+        if (cmatch.isEmpty()) {
             return null;
+        }
         return cmatch.get();
     }
 
@@ -195,7 +207,7 @@ public final class ConfluenceHelper {
      * @throws InvalidVarNameException
      * @throws OpenXML4JException
      */
-    public static CapacityInfo getCapacity(String teamName, Integer sprint) throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException {
+    public static CapacityInfo getCapacity(String teamName, Integer sprint) throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException, Exception {
         List<CapacityInfo> capMatch = getCapacities(teamName, Arrays.asList(new Integer[]{sprint}));
         return capMatch.get(0);
     }
@@ -217,11 +229,11 @@ public final class ConfluenceHelper {
         return resp;
     }
 
-    public static void login() throws InvalidVarNameException, InvalidParamException, IOException {
+    public static void login() throws InvalidVarNameException, InvalidParamException, IOException, Exception {
         runTemplate("loginConfluence.txt");
     }
 
-    public static void logout() throws IOException, InvalidVarNameException, InvalidParamException {
+    public static void logout() throws IOException, InvalidVarNameException, InvalidParamException, Exception {
         AntSMUtilites.run("go={[:CONFLUENCE_HOME]/logout.action}");
     }
 }

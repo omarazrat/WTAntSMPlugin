@@ -13,6 +13,11 @@
  */
 package antsm.com.tests.logic;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Logger;
+import static java.util.stream.Collectors.toList;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -25,37 +30,33 @@ import lombok.ToString;
 @Data
 @NoArgsConstructor
 @ToString(callSuper = true)
-@EqualsAndHashCode(callSuper = false)
-public class SPReportInfo  extends AbstractTeamSprintInfo{
-    private double estimated,allComplete ,incomplete,removed,addedAst,completeAst,incompleteAst,complete,allIncomplete,cias,ideal;
+@EqualsAndHashCode(callSuper = true)
+public class SPReportInfo extends AbstractTeamSprintInfo {
 
+    private static Logger log = Logger.getLogger("WebAppTester");
+    private List<SPreportDimension> reports = new LinkedList<>();
+
+    ;
     public SPReportInfo(String teamName, int sprint) {
         super(teamName, sprint);
     }
-    
-    public double getSpVar(){
-        if(estimated==0)
-            return 0;
-        return (removed+addedAst)/estimated;
-    }	
-    public double getUtRatio(){
-        if(ideal==0)
-            return 0;
-        return estimated/ideal;
-    }	
-    public double getCompRatio(){
-        if(estimated==0)
-            return 0;
-        return allComplete/estimated;
+
+    public SPreportDimension get(SPreportDimension.Dimension dimension) {
+        Optional<SPreportDimension> match = reports.stream().filter(r -> r.getDimension().equals(dimension))
+                .findAny();
+        if (match.isEmpty()) {
+            return null;
+        }
+        return match.get();
     }
-     public double getRealValue(){
-        double denominador = allComplete+removed+cias+allIncomplete;
-        if(denominador==0)
-                return 0;
-        return (allComplete+cias)/denominador;
-     }
-    @Override
-    public boolean equals(Object obj) {
-        return super.equals(obj);
+
+    public List<SPreportDimension> getMany(SPreportDimension.Dimension dimension) {
+        return reports.stream().filter(r -> r.getDimension().equals(dimension))
+                .collect(toList());
+    }
+
+    public void add(SPreportDimension report) {
+//        reports.remove(report);
+        reports.add(report);
     }
 }

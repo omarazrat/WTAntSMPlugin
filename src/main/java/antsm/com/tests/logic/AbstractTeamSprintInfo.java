@@ -17,7 +17,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import net.bytebuddy.implementation.bind.annotation.Empty;
 
 /**
  *
@@ -30,4 +29,8 @@ import net.bytebuddy.implementation.bind.annotation.Empty;
 public abstract class AbstractTeamSprintInfo {
     private String teamName;
     private int sprint;    
+
+    public String shortPrint(){
+        return getTeamName()+","+getSprint();
+    }
 }

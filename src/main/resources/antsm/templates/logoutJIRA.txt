@@ -1,3 +1,4 @@
 go={[:JIRA_HOME]/logout}
+wait={}
 click={"selector":"#confirm-logout-submit"}
 pause={"time":"[:shortdelay]"}

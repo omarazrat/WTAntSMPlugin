@@ -13,7 +13,10 @@
  */
 package antsm.com.tests.logic;
 
-import java.util.Objects;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -34,10 +37,25 @@ public class CapacityInfo extends AbstractTeamSprintInfo{
     private double ideal;
     private double commited;
 
+    private Map<String,Double> personalCoefficients = new HashMap<>();
+    private static final Logger log = Logger.getLogger("WebAppTester");
+    
     public CapacityInfo(String teamName, int sprint) {
         super(teamName, sprint);
     }
 
+    public Double getCoefficient(String userName) {
+//        for (String key : personalCoefficients.keySet()) {
+//            log.log(Level.INFO, "{0}={1}", new Object[]{key, personalCoefficients.get(key)});
+//        }
+        return personalCoefficients.get(userName);
+    }
+
+    public Double put(String userName, Double coefficient) {
+        return personalCoefficients.put(userName, coefficient);
+    }
+
+    
     @Override
     public boolean equals(Object obj) {
         return super.equals(obj);

@@ -23,6 +23,7 @@ import static antsm.com.tests.utils.JIRAReportHelper.TABLE_TYPE.REMOVED_FROM_SPR
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Predicate;
@@ -30,6 +31,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
+import org.apache.commons.collections4.map.HashedMap;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -45,6 +47,10 @@ public final class JIRAReportHelper {
     private static Logger log = Logger.getLogger("WebAppTester");
     private static List<JIRAReportInfo> jirarepCache = new LinkedList<>();
     private static String JIRA_USER, JIRA_PWD;
+    /**
+     * Cache para {@link #guessTicketName(java.lang.String) }
+     */
+    private static final Map<String, String> ticketNames = new HashedMap<>();
 
     public enum TICKET_STATE {
         TODO,
@@ -102,20 +108,38 @@ public final class JIRAReportHelper {
         jirarepCache.clear();
     }
 
-    public static void login() throws InvalidVarNameException, IOException, InvalidParamException {
+    public static void login() throws InvalidVarNameException, IOException, InvalidParamException, Exception {
         runTemplate("loginJIRA.txt");
     }
 
-    public static void logout() throws InvalidVarNameException, IOException, InvalidParamException {
+    public static void logout() throws InvalidVarNameException, IOException, InvalidParamException, Exception {
         runTemplate("logoutJIRA.txt");
     }
 
-    public static List<JIRAReportInfo> getJIRAReports(String teamName, String JIRAid, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException {
+    public static String guessTicketName(String ticketId) throws InvalidVarNameException, InvalidParamException, Exception {
+        if (ticketNames.containsKey(ticketId)) {
+            return ticketNames.get(ticketId);
+        }
+        AntSMUtilites.fnGo("[:JIRA_HOME]/browse/" + ticketId);
+        AntSMUtilites.fnWait();
+        WebDriver driver = AntSMUtilites.getDriver();
+        By selector = By.cssSelector("#summary-val");
+        String resp = "";
+
+        if (!driver.findElements(selector).isEmpty()) {
+            WebElement element = driver.findElement(selector);
+            resp = element.getAttribute("textContent");
+        }
+        ticketNames.put(ticketId, resp);
+        return resp;
+    }
+
+    public static List<JIRAReportInfo> getJIRAReports(String teamName, String JIRAid, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException, Exception {
         List<JIRAReportInfo> resp = new LinkedList<>();
         final String location = "[:JIRA_HOME]/secure/RapidBoard.jspa?rapidView={team}&view=reporting&chart=sprintRetrospective"
                 .replace("{team}", JIRAid);
         AntSMUtilites.run("go={" + location + "}");
-        AntSMUtilites.run("pause={\"time\":\"[:longdelay]\"}");
+        AntSMUtilites.fnPause("[:longdelay]");
         final WebDriver driver = AntSMUtilites.getDriver();
         for (int sprint : sprints) {
             By pickerSelector = By.cssSelector("#ghx-chart-picker");
@@ -136,7 +160,7 @@ public final class JIRAReportHelper {
 //                }
                 return optResp;
             };
-            final Optional<WebElement> match = select.getOptions().parallelStream().filter(optFilter).findFirst();
+            final Optional<WebElement> match = select.getOptions().stream().filter(optFilter).findFirst();
             if (!match.isPresent()) {
                 log.log(Level.SEVERE, "Couldn't find sprint " + sprint + " of team " + teamName);
                 continue;
@@ -327,6 +351,7 @@ public final class JIRAReportHelper {
                 return false;
             }
         }
+//        log.info("return true");
         return true;
     }
 
@@ -345,7 +370,7 @@ public final class JIRAReportHelper {
         return JIRA_PWD;
     }
 
-    public static List<Ticket> collectBugBashes(String title, WebElement table) throws IOException, InvalidVarNameException, InvalidParamException {
+    public static List<Ticket> collectBugBashes(String title, WebElement table) throws IOException, InvalidVarNameException, InvalidParamException, Exception {
         //Clave 	Resumen 	T 	Creado 	Actualizado 	Fecha de entrega 	Asignado 	Informante 	P 	Estado 	descripción
         List<Ticket> resp = new LinkedList<>();
         List<WebElement> rows = null;
@@ -393,7 +418,7 @@ public final class JIRAReportHelper {
                 final String word = "/browse/";
                 int idx = epicCode.indexOf(word);
                 if (idx > -1) {
-                    epicCode = epicCode.substring(idx+word.length());
+                    epicCode = epicCode.substring(idx + word.length());
                 }
                 ticket.setEpic(epicCode);
             }

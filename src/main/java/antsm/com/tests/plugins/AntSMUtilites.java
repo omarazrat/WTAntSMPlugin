@@ -78,11 +78,11 @@ public class AntSMUtilites extends AbstractDefaultPluginRunner {
         return new ImageIcon(img);
     }
 
-    public static void runTemplate(String fileName) throws InvalidVarNameException, IOException, InvalidParamException {
+    public static void runTemplate(String fileName) throws InvalidVarNameException, IOException, InvalidParamException, Exception {
         runTemplate(fileName, null);
     }
 
-    public static void runTemplate(String fileName, String teamName) throws InvalidVarNameException, IOException, InvalidParamException {
+    public static void runTemplate(String fileName, String teamName) throws InvalidVarNameException, IOException, InvalidParamException, Exception {
         final InputStream streamReader = ControlPanel.class.getResourceAsStream("/antsm/templates/" + fileName);
         ByteArrayOutputStream ostream = new ByteArrayOutputStream();
         streamReader.transferTo(ostream);
