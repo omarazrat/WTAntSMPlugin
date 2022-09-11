@@ -67,6 +67,8 @@ import org.apache.poi.xssf.model.StylesTable;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -344,8 +346,10 @@ public final class PoiHelper {
                             && capacityInfo == null) {
                         continue;
                     }
-                    row = sheet.createRow(rownum++);
-                    fillXLRow(spreportInfo, jrInfo, spgroup, teamName, sprint, ReportMode.FORM1, capacityInfo, row);
+                    if (spgroup != null) {
+                        row = sheet.createRow(rownum++);
+                        fillXLRow(spreportInfo, jrInfo, spgroup, teamName, sprint, ReportMode.FORM1, capacityInfo, row);
+                    }
                 }
             }
         } catch (Exception ex) {
@@ -411,6 +415,11 @@ public final class PoiHelper {
                             break;
                         }
                         Double coefficient = capacityInfo.getCoefficient(userName);
+                        if (coefficient == null) {
+                            String alias = getAliasInCapacity(teamName, userName);
+                            coefficient = capacityInfo.getCoefficient(alias);
+                        }
+
                         if (coefficient != null) {
                             row.createCell(cellnum++, CellType.NUMERIC).setCellValue(coefficient);
                         } else {
@@ -456,6 +465,21 @@ public final class PoiHelper {
 //                        log.info(spreportInfo.getTeamName()+","+spreportInfo.getSprint()+", r.v:"+spreportInfo.getRealValue());
             row.createCell(cellnum++, CellType.NUMERIC).setCellValue(dimReport.getRealValue());
         }
+    }
+
+    private static String getAliasInCapacity(String teamName, String userName) {
+        String alias = "";
+        String capacityMapping = sysProps.getProperty("mapping." + teamName + ".capacity");
+        if (capacityMapping != null) {
+            JSONParser parser = new JSONParser();
+            try {
+                JSONObject JSONMapping = (JSONObject) parser.parse(capacityMapping);
+                alias = (String) JSONMapping.get(userName);
+            } catch (Exception ex) {
+                log.log(Level.SEVERE, null, ex);
+            }
+        }
+        return alias;
     }
 
     private static XSSFCellStyle buildHeaderStyle(IndexedColors color) {

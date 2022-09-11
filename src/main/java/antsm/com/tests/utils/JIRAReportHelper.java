@@ -29,6 +29,8 @@ import java.util.Properties;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
 import org.apache.commons.collections4.map.HashedMap;
@@ -151,18 +153,16 @@ public final class JIRAReportHelper {
             final WebElement wSelect = driver.findElement(pickerSelector);
             //#ghx-chart-picker
             Select select = new Select(wSelect);
+            Pattern sprintSelector = Pattern.compile(".*"+teamName+".*"+sprint+"(\\..*)?$");
             Predicate<WebElement> optFilter = opt -> {
                 String text = opt.getAttribute("textContent");
 //                log.info("testing opt: " + text);
-                final boolean optResp = text.contains(teamName) && text.endsWith(" " + sprint);
-//                if (optResp) {
-//                    log.info("this is it!");
-//                }
-                return optResp;
+                Matcher matcher = sprintSelector.matcher(text);
+                return matcher.matches();
             };
             final Optional<WebElement> match = select.getOptions().stream().filter(optFilter).findFirst();
             if (!match.isPresent()) {
-                log.log(Level.SEVERE, "Couldn't find sprint " + sprint + " of team " + teamName);
+                log.log(Level.SEVERE, "Couldn't find sprint " + sprint + " of team " + teamName+" in JIRA sprint report ");
                 continue;
             }
             WebElement opt = match.get();
