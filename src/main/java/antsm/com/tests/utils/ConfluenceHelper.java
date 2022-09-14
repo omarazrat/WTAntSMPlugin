@@ -53,14 +53,12 @@ public final class ConfluenceHelper {
     public static void init() {
         sysProps = getConfigFile();
         try {
-            String home = sysProps.getProperty("CONFLUENCE.home");
+            String home = sysProps.getProperty("CONFLUENCE_home");
 //            log.info("setting confluence home to "+home);
-            String command = "set={\"name\":\"CONFLUENCE_HOME\",\"value\":\"" + home + "\"}";
-//            log.info(command);
-            AntSMUtilites.run(command);
+            AntSMUtilites.fnSetVariable("CONFLUENCE_home", home);
 //            log.info("done");
             home = sysProps.getProperty("CONFLUENCE.tpp.root");
-            command = "set={\"name\":\"CONFLUENCE_TPP_ROOT\",\"value\":\"" + home + "\"}";
+            AntSMUtilites.fnSetVariable("CONFLUENCE_TPP_ROOT", home);
         } catch (Exception ex) {
             log.log(Level.SEVERE, null, ex);
         }
@@ -234,6 +232,6 @@ public final class ConfluenceHelper {
     }
 
     public static void logout() throws IOException, InvalidVarNameException, InvalidParamException, Exception {
-        AntSMUtilites.run("go={[:CONFLUENCE_HOME]/logout.action}");
+        AntSMUtilites.run("go={[:CONFLUENCE_home]/logout.action}");
     }
 }

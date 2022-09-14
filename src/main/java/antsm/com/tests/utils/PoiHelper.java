@@ -552,7 +552,7 @@ public final class PoiHelper {
             throws IOException, InvalidVarNameException, InvalidParamException, Exception {
 //        log.info("Teams: "+teamNames.stream().collect(joining(",")));
 //        log.info("Quarters: "+quarters.stream().map(Object::toString).collect(joining(",")));
-        String JIRA_HOME = AntSMUtilites.parse("[:JIRA_HOME]");
+        String JIRA_HOME = AntSMUtilites.parse("[:JIRA_home]");
         final WebDriver driver = AntSMUtilites.getDriver();
         int rownum = 0, cellnum = 0;
         List<Ticket> reportedBugs = new LinkedList<>();

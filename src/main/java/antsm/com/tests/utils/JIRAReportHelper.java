@@ -99,8 +99,9 @@ public final class JIRAReportHelper {
             sysProps = getConfigFile();
             JIRA_USER = sysProps.getProperty("JIRA.user");
             JIRA_PWD = sysProps.getProperty("JIRA.password");
-            String home = sysProps.getProperty("JIRA.home");
-            AntSMUtilites.run("set={\"name\":\"JIRA_HOME\",\"value\":\"" + home + "\"}");
+            String home = sysProps.getProperty("JIRA_home");
+            
+            AntSMUtilites.fnSetVariable("JIRA_home", home);
         } catch (Exception ex) {
             log.log(Level.SEVERE, null, ex);
         }
@@ -122,7 +123,7 @@ public final class JIRAReportHelper {
         if (ticketNames.containsKey(ticketId)) {
             return ticketNames.get(ticketId);
         }
-        AntSMUtilites.fnGo("[:JIRA_HOME]/browse/" + ticketId);
+        AntSMUtilites.fnGo("[:JIRA_home]/browse/" + ticketId);
         AntSMUtilites.fnWait();
         WebDriver driver = AntSMUtilites.getDriver();
         By selector = By.cssSelector("#summary-val");
@@ -138,7 +139,7 @@ public final class JIRAReportHelper {
 
     public static List<JIRAReportInfo> getJIRAReports(String teamName, String JIRAid, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException, Exception {
         List<JIRAReportInfo> resp = new LinkedList<>();
-        final String location = "[:JIRA_HOME]/secure/RapidBoard.jspa?rapidView={team}&view=reporting&chart=sprintRetrospective"
+        final String location = "[:JIRA_home]/secure/RapidBoard.jspa?rapidView={team}&view=reporting&chart=sprintRetrospective"
                 .replace("{team}", JIRAid);
         AntSMUtilites.run("go={" + location + "}");
         AntSMUtilites.fnPause("[:longdelay]");
