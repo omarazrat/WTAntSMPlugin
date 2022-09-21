@@ -25,6 +25,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import org.junit.Assert;
 import org.junit.Test;
 import org.openqa.selenium.By;
@@ -42,10 +43,18 @@ public class JiraReportHelperTester extends PluginInterfaceEmulator {
     public JiraReportHelperTester() {
     }
 
+//    @Test
+    public void testBoardType() throws InvalidParamException, Exception {
+        for (int JIRAid : new Integer[]{2605, 1709}) {
+            log.log(Level.INFO, "type of board {0}: {1}", new Object[]{JIRAid, JIRAReportHelper.getBoardType(JIRAid)});
+        }
+    }
+
     // TODO add test methods here.
     // The methods must be annotated with annotation @Test. For example:
     //
     @Test
+    
     public void test() throws MalformedURLException, InterruptedException {
         String slash = System.getProperty("file.separator");
         File f = new File("src" + slash + "main" + slash + "resources" + slash + "files" + slash + "testBoard.html");
@@ -58,7 +67,7 @@ public class JiraReportHelperTester extends PluginInterfaceEmulator {
         List<WebElement> headers = driver.findElements(headerSelector);
         Assert.assertFalse(headers.isEmpty());
         //Encabezados de tablas
-        int totalTickets = 0,completedTickets=0,toDo=0,inProgress=0,inReview=0,onHold=0;
+        int totalTickets = 0, completedTickets = 0, toDo = 0, inProgress = 0, inReview = 0, onHold = 0;
         for (WebElement header : headers) {
             String headerText = header.getText();
             JIRAReportHelper.TABLE_TYPE type = JIRAReportHelper.TABLE_TYPE.byHeader(headerText);

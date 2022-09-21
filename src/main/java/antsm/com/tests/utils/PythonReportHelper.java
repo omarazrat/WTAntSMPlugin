@@ -21,6 +21,7 @@ import static antsm.com.tests.plugins.AntSMUtilites.getConfigFile;
 import static antsm.com.tests.utils.ConfluenceHelper.getCapacityCache;
 import static antsm.com.tests.utils.JIRAReportHelper.getJiraPassword;
 import static antsm.com.tests.utils.JIRAReportHelper.getJiraUser;
+import static antsm.com.tests.utils.JIRAReportHelper.getSPReportsKANBAN;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +32,6 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import static java.util.stream.Collectors.joining;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
 import org.apache.poi.openxml4j.exceptions.OpenXML4JException;
@@ -68,7 +68,21 @@ public final class PythonReportHelper {
      * @return
      * @throws IOException
      */
-    public static List<SPReportInfo> getSPReports(String teamName, String JIRAid, List<Integer> sprints) throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException, Exception {
+    public static List<SPReportInfo> getSPReports(String teamName, String JIRAid, List<Integer> sprints) 
+            throws IOException, InvalidParamException, InvalidVarNameException, OpenXML4JException, Exception {
+        List<SPReportInfo> resp  = null;
+        switch(JIRAReportHelper.getBoardType(Integer.parseInt(JIRAid))){
+            case SCRUM:
+                resp = getSPReportsSCRUM(JIRAid, teamName, sprints);
+                break;
+            case KANBAN:
+                resp = getSPReportsKANBAN(JIRAid, teamName, sprints);
+                break;
+        }
+        return resp;
+    }
+
+    private static List<SPReportInfo> getSPReportsSCRUM(String JIRAid, String teamName, List<Integer> sprints) throws Exception, IOException, NumberFormatException {
         List<SPReportInfo> resp = new LinkedList<>();
         final String SLASH = System.getProperty("file.separator");
         String genCommand = pythonPath + " sprint-report{slash}sprint-report.py  --output CONSOLE --team {team} "
@@ -81,9 +95,8 @@ public final class PythonReportHelper {
         final String pwd = AntSMUtilites.parse(getJiraPassword());
         genCommand = genCommand.replace("{JIRA_USER}", getJiraUser())
                 .replace("{JIRA_PWD}", pwd);
-//        log.info("genCommand=" + printCommand + ",spreportPath=" + spreportPath + ",JIRAid=" + JIRAid);
+        //        log.info("genCommand=" + printCommand + ",spreportPath=" + spreportPath + ",JIRAid=" + JIRAid);
         genCommand = genCommand.replace("{base}", spreportPath);
-
         for (Integer sprint : sprints) {
             if (inSPRCache(teamName, sprint)) {
                 continue;
@@ -95,71 +108,70 @@ public final class PythonReportHelper {
             spinfo.setTeamName(teamName);
             spinfo.setSprint(sprint);
 //            log.info("looking for " + teamName + " , " + sprint);
-            if (inSPRCache(teamName, sprint)) {
+if (inSPRCache(teamName, sprint)) {
 //                log.info("found");
-                spinfo = getSPRCache(teamName, sprint);
-            }
-            log.log(Level.INFO, "running command [{0}]", printCommand.replace("{sprint}", "" + sprint));
-            Runtime rt = Runtime.getRuntime();
-            Process proc = rt.exec(command, null, new File(spreportPath));
-            BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
+spinfo = getSPRCache(teamName, sprint);
+}
+log.log(Level.INFO, "running command [{0}]", printCommand.replace("{sprint}", "" + sprint));
+Runtime rt = Runtime.getRuntime();
+Process proc = rt.exec(command, null, new File(spreportPath));
+BufferedReader stdInput = new BufferedReader(new InputStreamReader(proc.getInputStream()));
 
-            BufferedReader stdError = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+BufferedReader stdError = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
 
 // Read the output from the command
 //            log.info("Here is the standard output of the command:");
-            String s = null;
-            int linecounter = 1;
-            int estimatedOffset = 0;
-            int descriptionOffset = 0;
-            String[] tokens;
-            while ((s = stdInput.readLine()) != null) {
+String s = null;
+int linecounter = 1;
+int estimatedOffset = 0;
+int descriptionOffset = 0;
+String[] tokens;
+while ((s = stdInput.readLine()) != null) {
 //                log.info(s);
-                //titles
-                if (linecounter == 2) {
-                    estimatedOffset = s.indexOf("Estimated");
-                    descriptionOffset = s.indexOf("Description");
-                }
-                //Overall
-                if (linecounter == 3) {
-                    tokens = s.substring(estimatedOffset).trim().split("\\s+");
-                    SPreportDimension spgroup = collectGroupStats(tokens, teamName, sprint);
-                    if (spgroup == null) {
-                        break;
-                    }
-                    spinfo.add(spgroup);
-                } else if (s.equals("By DP")) {
-                    stdInput.readLine();//ID          Description                     Estimated  All Complete  Incomplete  Removed   Added*  Complete*  Incomplete*  Complete  All Incomplete  CiAS
-                    s = stdInput.readLine();
-                    while (!s.isBlank()) {
-                        collectDPEpcStats(SPreportDimension.Dimension.DP, s, estimatedOffset, teamName, sprint, spinfo);
-                        s = stdInput.readLine();
-                    }
-                } else if (s.equals("By Epic")) {
-                    stdInput.readLine();//ID          Description                     Estimated  All Complete  Incomplete  Removed   Added*  Complete*  Incomplete*  Complete  All Incomplete  CiAS
-                    s = stdInput.readLine();
-                    while (!s.isBlank()) {
-                        collectDPEpcStats(SPreportDimension.Dimension.EPIC, s, estimatedOffset, teamName, sprint, spinfo);
-                        s = stdInput.readLine();
-                    }
-                } else if (s.equals("By Contributor")) {
-                    stdInput.readLine();//ID          Description                     Estimated  All Complete  Incomplete  Removed   Added*  Complete*  Incomplete*  Complete  All Incomplete  CiAS
-                    s = stdInput.readLine();
-                    while (!s.isBlank()) {
-                        collectIndividualResults(s, descriptionOffset, estimatedOffset, teamName, sprint, spinfo);
-                        s = stdInput.readLine();
-                    }
-                }
-                linecounter++;
-            }
+//titles
+if (linecounter == 2) {
+    estimatedOffset = s.indexOf("Estimated");
+    descriptionOffset = s.indexOf("Description");
+}
+//Overall
+if (linecounter == 3) {
+    tokens = s.substring(estimatedOffset).trim().split("\\s+");
+    SPreportDimension spgroup = collectGroupStats(tokens, teamName, sprint);
+    if (spgroup == null) {
+        break;
+    }
+    spinfo.add(spgroup);
+} else if (s.equals("By DP")) {
+    stdInput.readLine();//ID          Description                     Estimated  All Complete  Incomplete  Removed   Added*  Complete*  Incomplete*  Complete  All Incomplete  CiAS
+    s = stdInput.readLine();
+    while (!s.isBlank()) {
+        collectDPEpcStats(SPreportDimension.Dimension.DP, s, estimatedOffset, teamName, sprint, spinfo);
+        s = stdInput.readLine();
+    }
+} else if (s.equals("By Epic")) {
+    stdInput.readLine();//ID          Description                     Estimated  All Complete  Incomplete  Removed   Added*  Complete*  Incomplete*  Complete  All Incomplete  CiAS
+    s = stdInput.readLine();
+    while (!s.isBlank()) {
+        collectDPEpcStats(SPreportDimension.Dimension.EPIC, s, estimatedOffset, teamName, sprint, spinfo);
+        s = stdInput.readLine();
+    }
+} else if (s.equals("By Contributor")) {
+    stdInput.readLine();//ID          Description                     Estimated  All Complete  Incomplete  Removed   Added*  Complete*  Incomplete*  Complete  All Incomplete  CiAS
+    s = stdInput.readLine();
+    while (!s.isBlank()) {
+        collectIndividualResults(s, descriptionOffset, estimatedOffset, teamName, sprint, spinfo);
+        s = stdInput.readLine();
+    }
+}
+linecounter++;
+}
 //            log.info("adding " + spinfo.getTeamName()+","+spinfo.getSprint());
-            resp.add(spinfo);
-            if (!inSPRCache(teamName, sprint)) {
+resp.add(spinfo);
+if (!inSPRCache(teamName, sprint)) {
 //                log.info("not in cache");
-                spreportCache.add(spinfo);
-            }
+spreportCache.add(spinfo);
+}
         }
-//        log.info("in cache?" + inSPRCache(teamName, sprints));
         return resp;
     }
 
@@ -282,4 +294,5 @@ public final class PythonReportHelper {
         resp.setIdeal(capacity.getIdeal());
         return true;
     }
+
 }

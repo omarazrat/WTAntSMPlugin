@@ -27,7 +27,6 @@ import static antsm.com.tests.utils.ConfluenceHelper.getCapacities;
 import static antsm.com.tests.utils.ConfluenceHelper.getCapacitiesCache;
 import static antsm.com.tests.utils.ConfluenceHelper.inCapacitiesCache;
 import static antsm.com.tests.utils.JIRAReportHelper.collectBugBashes;
-import static antsm.com.tests.utils.JIRAReportHelper.getJIRAName;
 import static antsm.com.tests.utils.JIRAReportHelper.getJIRARCache;
 import static antsm.com.tests.utils.JIRAReportHelper.getJIRAReports;
 import static antsm.com.tests.utils.JIRAReportHelper.guessTicketName;
@@ -72,6 +71,7 @@ import org.json.simple.parser.JSONParser;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import static antsm.com.tests.utils.JIRAReportHelper.getJIRAid;
 
 /**
  *
@@ -206,7 +206,7 @@ public final class PoiHelper {
         for (String teamName : teamNames) {
             worker.firePropertyChange("progress", total - delta, total + Double.valueOf(total).intValue());
             total += delta;
-            String JIRAid = getJIRAName(teamName);
+            String JIRAid = getJIRAid(teamName);
             if (JIRAid == null) {
                 log.log(Level.SEVERE, "couldn''t find JIRA id for team {0}", teamName);
                 continue;
@@ -300,7 +300,7 @@ public final class PoiHelper {
                         ? getCapacitiesCache(teamName, sprints)
                         : getCapacities(teamName, sprints);
                 //Reporte de Confluence...
-                String JIRAid = getJIRAName(teamName);
+                String JIRAid = getJIRAid(teamName);
                 if (JIRAid == null) {
                     log.log(Level.SEVERE, "couldn''t find JIRA id for team {0}", teamName);
                     continue;

@@ -58,7 +58,7 @@ public class ControlPanel extends javax.swing.JFrame {
     private ResourceBundle appBundle = ResourceBundle.getBundle("antsm");
     private Properties sysProps;
     private Logger log = Logger.getLogger("WebAppTester");
-    final String REGEXP_TEAMS_NAME = "^team\\.(.*)\\.capacity";
+    final String REGEXP_TEAMS_NAME = "^team\\.(.*)\\.JIRA\\.id";
     private transient boolean procRunning = false;
 
     /**

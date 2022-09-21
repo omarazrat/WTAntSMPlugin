@@ -14,26 +14,40 @@
 package antsm.com.tests.utils;
 
 import antsm.com.tests.logic.JIRAReportInfo;
+import antsm.com.tests.logic.Range;
+import antsm.com.tests.logic.SPReportInfo;
+import antsm.com.tests.logic.SPreportDimension;
 import antsm.com.tests.logic.Ticket;
 import antsm.com.tests.plugins.AntSMUtilites;
 import static antsm.com.tests.plugins.AntSMUtilites.getConfigFile;
 import static antsm.com.tests.plugins.AntSMUtilites.runTemplate;
 import static antsm.com.tests.utils.JIRAReportHelper.TABLE_TYPE.COMPLETED_OUTSIDE_SPRINT;
 import static antsm.com.tests.utils.JIRAReportHelper.TABLE_TYPE.REMOVED_FROM_SPRINT;
+import static antsm.com.tests.utils.Utils.JSONRequest;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+import java.util.stream.Stream;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
 import org.apache.commons.collections4.map.HashedMap;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -48,11 +62,22 @@ public final class JIRAReportHelper {
     private static Properties sysProps;
     private static Logger log = Logger.getLogger("WebAppTester");
     private static List<JIRAReportInfo> jirarepCache = new LinkedList<>();
+    private static List<Ticket> ticketCache = new LinkedList<>();
     private static String JIRA_USER, JIRA_PWD;
     /**
      * Cache para {@link #guessTicketName(java.lang.String) }
      */
     private static final Map<String, String> ticketNames = new HashedMap<>();
+
+    private static String storyPointsField,
+            assigneeField,
+            statusField,
+            issueTypeField,
+            teamsType,
+            fixEngField,
+            summaryField;
+
+    private static Map<Range<Date>, Integer> sprintRanges;
 
     public enum TICKET_STATE {
         TODO,
@@ -94,14 +119,40 @@ public final class JIRAReportHelper {
         }
     }
 
+    public enum BOARD_TYPE {
+        SCRUM,
+        KANBAN
+    }
+
     public static void init() {
         try {
             sysProps = getConfigFile();
             JIRA_USER = sysProps.getProperty("JIRA.user");
             JIRA_PWD = sysProps.getProperty("JIRA.password");
+            storyPointsField = sysProps.getProperty("JREST.storyPointsField");
+            assigneeField = sysProps.getProperty("JREST.assigneeField");
+            statusField = sysProps.getProperty("JREST.statusField");
+            issueTypeField = sysProps.getProperty("JREST.issueTypeField");
+            teamsType = sysProps.getProperty("JREST.teamsType");
+            fixEngField = sysProps.getProperty("JREST.fixEngField");
+            summaryField = sysProps.getProperty("JREST.summaryField");
             String home = sysProps.getProperty("JIRA_home");
-            
+
             AntSMUtilites.fnSetVariable("JIRA_home", home);
+
+            sprintRanges = new HashMap<>();
+            int year = Integer.parseInt(sysProps.getProperty("year"));
+            SimpleDateFormat df = new SimpleDateFormat("dd/MM/yyyy");
+            for (int sprint = 1; sprint <= 26; sprint++) {
+                final String key = "range." + year + ".sprint." + sprint;
+//                log.info("reading "+key);
+                final String flatRange = sysProps.getProperty(key);
+                String[] splittedRange = flatRange.split(",");
+                Range<Date> range = new Range<Date>();
+                range.setStart(df.parse(splittedRange[0]));
+                range.setEnd(df.parse(splittedRange[1]));
+                sprintRanges.put(range, sprint);
+            }
         } catch (Exception ex) {
             log.log(Level.SEVERE, null, ex);
         }
@@ -138,6 +189,35 @@ public final class JIRAReportHelper {
     }
 
     public static List<JIRAReportInfo> getJIRAReports(String teamName, String JIRAid, List<Integer> sprints) throws IOException, InvalidVarNameException, InvalidParamException, Exception {
+        final List<String> exitStatuses = getExitStatuses(JIRAid);
+        List<JIRAReportInfo> resp = null;
+        switch (getBoardType(Integer.parseInt(JIRAid))) {
+            case KANBAN:
+                resp = new LinkedList<>();
+                List<Ticket> teamTickets = getBoardIssues(JIRAid);
+                for (Integer sprint : sprints) {
+                    List<Ticket> sprintTickets = teamTickets
+                            .parallelStream().filter(ticket -> ticket.matchesSprint(sprint))
+                            .collect(toList());
+                    JIRAReportInfo info = new JIRAReportInfo(teamName, sprint);
+                    info.setTotalTickets(sprintTickets.size());
+                    long completedTickets
+                            = sprintTickets.parallelStream().filter(ticket -> exitStatuses.contains(ticket.getStatus()))
+                                    .count();
+                    info.setCompletedTickets((int) completedTickets);
+                    info.setTotalTickets(sprintTickets.size());
+                    resp.add(info);
+                }
+                break;
+            case SCRUM:
+            default:
+                resp = getJIRAScrumReports(JIRAid, sprints, teamName);
+                break;
+        }
+        return resp;
+    }
+
+    private static List<JIRAReportInfo> getJIRAScrumReports(String JIRAid, List<Integer> sprints, String teamName) throws Exception {
         List<JIRAReportInfo> resp = new LinkedList<>();
         final String location = "[:JIRA_home]/secure/RapidBoard.jspa?rapidView={team}&view=reporting&chart=sprintRetrospective"
                 .replace("{team}", JIRAid);
@@ -154,7 +234,7 @@ public final class JIRAReportHelper {
             final WebElement wSelect = driver.findElement(pickerSelector);
             //#ghx-chart-picker
             Select select = new Select(wSelect);
-            Pattern sprintSelector = Pattern.compile(".*"+teamName+".*"+sprint+"(\\..*)?$");
+            Pattern sprintSelector = Pattern.compile(".*" + teamName + ".*" + sprint + "(\\..*)?$");
             Predicate<WebElement> optFilter = opt -> {
                 String text = opt.getAttribute("textContent");
 //                log.info("testing opt: " + text);
@@ -163,7 +243,7 @@ public final class JIRAReportHelper {
             };
             final Optional<WebElement> match = select.getOptions().stream().filter(optFilter).findFirst();
             if (!match.isPresent()) {
-                log.log(Level.SEVERE, "Couldn't find sprint " + sprint + " of team " + teamName+" in JIRA sprint report ");
+                log.log(Level.SEVERE, "Couldn't find sprint " + sprint + " of team " + teamName + " in JIRA sprint report ");
                 continue;
             }
             WebElement opt = match.get();
@@ -235,9 +315,22 @@ public final class JIRAReportHelper {
         return resp;
     }
 
+    public static boolean inTicketCache(String key) {
+        return ticketCache.parallelStream().anyMatch(t -> t.getKey().equals(key));
+    }
+
     public static boolean inJIRARCache(String teamName, Integer sprint) {
         JIRAReportInfo report = new JIRAReportInfo(teamName, sprint);
         return jirarepCache.contains(report);
+    }
+
+    public static BOARD_TYPE getBoardType(int boardId) throws InvalidVarNameException, InvalidParamException, Exception {
+        final String url = "https://jira.bbpd.io/rest/agile/1.0/board/" + boardId;
+        JSONObject jsonObj = Utils.JSONRequest(url);
+        if (jsonObj.get("type").equals("scrum")) {
+            return BOARD_TYPE.SCRUM;
+        }
+        return BOARD_TYPE.KANBAN;
     }
 
     /**
@@ -256,6 +349,18 @@ public final class JIRAReportHelper {
             resp.add(jiraMatch.get());
         }
         return resp;
+    }
+
+    public static Ticket getTicketCache(String key) {
+        final Optional<Ticket> ticketMatch = ticketCache.parallelStream().filter(t -> t.getKey().equals(key)).findFirst();
+        if (ticketMatch.isPresent()) {
+            return ticketMatch.get();
+        }
+        return null;
+    }
+
+    public static Ticket getTicket(String key) {
+        return toTicket.apply(key);
     }
 
     public static int getTableRows(WebElement table) {
@@ -356,7 +461,13 @@ public final class JIRAReportHelper {
         return true;
     }
 
-    public static String getJIRAName(String teamName) {
+    /**
+     * Trae el id del equipo como aparece en el tablero scrum o kanban
+     *
+     * @param teamName
+     * @return
+     */
+    public static String getJIRAid(String teamName) {
         String key = "team." + teamName + ".JIRA.id";
 //        log.info("finding key " + key);
         final String resp = sysProps.getProperty(key);
@@ -437,6 +548,331 @@ public final class JIRAReportHelper {
                 teams.add(teamSpan.getText());
             }
             ticket.setTeams(teams);
+        }
+        return resp;
+    }
+
+    /**
+     * Atención: No utilice esta función concurrentemente {@link java.util.List#parallelStream()
+     * }
+     * mientras no exista una función que cargue independientemente de la
+     * ventana principal cada invocacion
+     */
+    public static Function<String, Ticket> toTicket = (key) -> {
+        Ticket resp = null;
+        if (inTicketCache(key)) {
+            return getTicketCache(key);
+        }
+        try {
+            final String URL = AntSMUtilites.parse("[:JIRA_home]") + "/rest/api/2/issue/" + key + "?fields=" + storyPointsField + "," + assigneeField + ","
+                    + statusField + "," + issueTypeField + "," + teamsType + "," + fixEngField + "," + summaryField;
+            JSONObject jsonRoot = JSONRequest(URL);
+            JSONObject jsonFields = (JSONObject) jsonRoot.get("fields");
+
+            resp = new Ticket();
+            resp.setKey(key);
+            try {
+                //Scrum points
+                double doubleValue = (double) jsonFields.get(storyPointsField);
+                resp.setPoints(doubleValue);
+            } catch (Exception e) {
+//                log.log(Level.SEVERE, "", e);
+            }
+            //Assignee
+            JSONObject jsonAssignee = (JSONObject) jsonFields.get(assigneeField);
+            if (jsonAssignee != null) {
+                resp.setAssignee((String) jsonAssignee.get("displayName"));
+            }
+            JSONObject jsonStatus = (JSONObject) jsonFields.get(statusField);
+            if (jsonStatus != null) {
+                resp.setStatus((String) jsonStatus.get("name"));
+            }
+            resp.setURL(AntSMUtilites.parse("[:JIRA_home]") + "/browse/" + key);
+            //type
+            JSONObject issueType = (JSONObject) jsonFields.get(issueTypeField);
+            if (issueType != null) {
+                String jsonType = (String) issueType.get("name");
+                resp.setType(Ticket.TYPE.valueOf(jsonType.toUpperCase()));
+            }
+            //Team(s)
+            JSONArray teams = (JSONArray) jsonFields.get(teamsType);
+            if (teams != null) {
+                List<String> teamsNames = (List<String>) teams
+                        .stream()
+                        .map(v -> {
+                            JSONObject teamItem = (JSONObject) v;
+                            return (String) teamItem.get("value");
+                        }).collect(toList());
+                resp.setTeams(teamsNames);
+            }
+            //Fix Engineers
+            JSONArray fixEngs = (JSONArray) jsonFields.get(fixEngField);
+            if (fixEngs != null) {
+                List<String> fixEngineers = (List<String>) fixEngs
+                        .stream().map(v -> {
+                            JSONObject fixEngineer = (JSONObject) v;
+                            return fixEngineer.get("displayName");
+                        }).collect(toList());
+                resp.setFixEngineers(fixEngineers);
+            }
+            //summary
+            resp.setSummary((String) jsonFields.get(summaryField));
+        } catch (Exception e) {
+            log.log(Level.SEVERE, key, e);
+        }
+        ticketCache.add(resp);
+        return resp;
+    };
+
+    public static List<SPReportInfo> getSPReportsKANBAN(String JIRAid, String teamName, List<Integer> sprints) throws InvalidVarNameException, InvalidParamException, Exception {
+        List<SPReportInfo> resp = new LinkedList<>();
+        List<Ticket> tickets = getBoardIssues(JIRAid);
+        final List<String> exitStatuses = getExitStatuses(JIRAid);
+//        log.info(tickets.stream().map(Ticket::toString).collect(joining(",")));
+//        log.info("collectiong epics");
+        double pointsxSprint = Double.valueOf(sysProps.getProperty("JIRA.kanban.pointspersprint"));
+        String key = "JIRA.kanban." + JIRAid + ".pointspersprint";
+        if (sysProps.containsKey(key)) {
+            pointsxSprint = Double.valueOf(sysProps.getProperty(key));
+        }
+//        log.info(epics.stream().map(Ticket::toString).collect(joining(",")));
+        for (Integer sprint : sprints) {
+            SPReportInfo info = new SPReportInfo(teamName, sprint);
+            final List<Ticket> sprintTickets = tickets.parallelStream()
+                    .filter(t -> t.matchesSprint(sprint))
+                    .collect(toList());
+            List<Ticket> epics = collectEpics(JIRAid);
+            List<SPreportDimension> spreportDims = new LinkedList<>();
+            //Epics
+            for (Ticket epic : epics) {
+                SPreportDimension epReport = new SPreportDimension(SPreportDimension.Dimension.EPIC);
+                epReport.setId(epic.getKey());
+                final List<Ticket> epicTickets = sprintTickets.parallelStream()
+                        .filter(ticket -> ticket.getEpic().equals(epic.getKey()))
+                        .collect(toList());
+                double estimated = epicTickets.parallelStream()
+                        .map(Ticket::getPoints)
+                        .reduce(0d, Double::sum);
+                epReport.setEstimated(estimated);
+                double completed = epicTickets.parallelStream()
+                        .filter(ticket -> exitStatuses.contains(ticket.getStatus()))
+                        .map(Ticket::getPoints)
+                        .reduce(0d, Double::sum);
+                epReport.setAllComplete(completed);
+                epReport.setIncomplete(estimated - completed);
+                spreportDims.add(epReport);
+            }
+            List<String> developers = sprintTickets.parallelStream()
+                    .flatMap((Ticket ticket) -> {
+                        List<String> names = ticket.getFixEngineers();
+                        names.add(ticket.getAssignee());
+                        return names.stream();
+                    })
+                    .distinct()
+                    .collect(toList());
+            for (String developer : developers) {
+                SPreportDimension perReport = new SPreportDimension(SPreportDimension.Dimension.INDIVIDUAL);
+                perReport.setUserName(developer);
+                double estimated = Utils.sumPointsByDeveloper(sprintTickets, developer),
+                        completed = Utils.sumCompletedPointsByDeveloper(sprintTickets, exitStatuses, developer);
+                perReport.setComplete(completed);
+                perReport.setAllIncomplete(estimated - completed);
+                perReport.setEstimated(estimated);
+                perReport.setIdeal(pointsxSprint);
+                spreportDims.add(perReport);
+            }
+            info.setReports(spreportDims);
+            resp.add(info);
+        }
+        return resp;
+    }
+
+    /**
+     * Trae la lista de tickets en un tablero de JIRA. Hace uso de la
+     * {@link #ticketCache cache}
+     *
+     * @param JIRAid
+     * @return
+     * @throws Exception
+     */
+    public static List<Ticket> getBoardIssues(String JIRAid) throws Exception {
+        String url = AntSMUtilites.parse("[:JIRA_home]") + "/rest/agile/1.0/board/" + JIRAid + "/issue?fields=key";
+        JSONObject jsonObj = Utils.JSONRequest(url);
+        JSONArray issues = (JSONArray) jsonObj.get("issues");
+//        log.info("collecting tickets");
+        List<Ticket> tickets = (List<Ticket>) issues.stream()
+                .map(e -> ((JSONObject) e).get("key"))
+                .map(toTicket)
+                .collect(toList());
+        setTicketsSprints(tickets, jsonObj, JIRAid);
+        return tickets;
+    }
+
+    static boolean DEBUG;
+    /**
+     * Attention: la consulta para obtener el JSON que llega acá debería
+     * contener expand=changelog
+     *
+     * @param tickets
+     * @param jsonObj
+     * @param JIRAid
+     */
+    private static void setTicketsSprints(List<Ticket> tickets, JSONObject jsonObj, String JIRAid) {
+        //Estados de entrada y salida al tablero
+        List<String> entryStatuses = getEntryStatuses(JIRAid);
+//        log.log(Level.INFO, "entry:{0}", entryStatuses.stream().collect(joining(",")));
+        List<String> exitStatuses = getExitStatuses(JIRAid);
+//        log.log(Level.INFO, "exit:{0}", exitStatuses.stream().collect(joining(",")));
+//        log.info(""+tickets.size());
+        tickets.parallelStream().forEach(ticket -> {
+//            log.info(ticket.getKey());
+            //Sprint(s)
+            JSONObject changeLog;
+            try {
+                changeLog = getChangelog(ticket.getKey());
+            } catch (Exception ex) {
+                log.log(Level.SEVERE, null, ex);
+                return;
+            }
+            JSONArray histories = (JSONArray) changeLog.get("histories");
+//            log.info("histories:" + histories.size());
+DEBUG = ticket.getKey().equals("LRN-186221");
+            Optional<Date> entryStatusChange = filterHistoryStatuses(histories, entryStatuses);
+            Optional<Date> exitStatusChange = filterHistoryStatuses(histories, exitStatuses);
+            //Encontró la fecha en que entró al kanban?
+            if (entryStatusChange.isPresent()) {
+                final Date entryDate = entryStatusChange.get();
+                log.log(Level.INFO, "entry: {0}", entryDate);
+                Optional<Integer> startSprintMatch = findMatchingSprint(entryDate);
+                if (startSprintMatch.isPresent()) {
+                    int startSprint, finalSprint = -1;
+                    startSprint = startSprintMatch.get();
+                    log.info("start sprint:" + startSprint);
+                    if (exitStatusChange.isPresent()) {
+                        Optional<Integer> endSprintMatch = findMatchingSprint(exitStatusChange.get());
+                        if (endSprintMatch.isPresent()) {
+                            finalSprint = endSprintMatch.get();
+                        }
+                    }
+                    if (finalSprint == -1) {
+                        final Optional<Integer> endSprintMatch = findMatchingSprint(new Date());
+                        if (endSprintMatch.isPresent()) {
+                            finalSprint = endSprintMatch.get();
+                        }
+                    }
+                    List<Integer> sprints = new LinkedList<>();
+                    sprints.add(startSprint);
+                    if (finalSprint != -1) {
+                        if (finalSprint >= startSprint) {
+                            for (int sprint = startSprint + 1; sprint <= finalSprint; sprint++) {
+                                sprints.add(sprint);
+                            }
+                        } else {
+                            for (int sprint = startSprint + 1; sprint <= 26; sprint++) {
+                                sprints.add(sprint);
+                            }
+                            for (int sprint = 1; sprint <= finalSprint; sprint++) {
+                                sprints.add(sprint);
+                            }
+                        }
+                    }
+                    ticket.setSprints(sprints);
+                }
+            }
+        });
+    }
+
+    public static List<String> getEntryStatuses(String JIRAid) {
+        final List<String> defaultEntryStatuses = Arrays.asList(sysProps.getProperty("JIRA.kanban.startStatus").toUpperCase().split(","));
+        String stKey = "JIRA.kanban." + JIRAid + ".startStatus";
+        return sysProps.containsKey(stKey)
+                ? Arrays.asList(sysProps.getProperty(stKey).toUpperCase().split(","))
+                : defaultEntryStatuses;
+    }
+
+    private static JSONObject getChangelog(String key) throws InvalidParamException, Exception {
+        final String url = AntSMUtilites.parse("[:JIRA_home]") + "/rest/api/2/issue/" + key + "?expand=changelog&fields=%22%22";
+        return (JSONObject) Utils.JSONRequest(url).get("changelog");
+    }
+
+    public static List<String> getExitStatuses(String JIRAid) {
+        String stKey;
+        List<String> statuses;
+        //Salida del tablero
+        final List<String> defaultExitStatuses = Arrays.asList(sysProps.getProperty("JIRA.kanban.endStatus").toUpperCase().split(","));
+        stKey = "JIRA.kanban." + JIRAid + ".endStatus";
+        statuses = sysProps.containsKey(stKey)
+                ? Arrays.asList(sysProps.getProperty(stKey).toUpperCase().split(","))
+                : defaultExitStatuses;
+        return statuses;
+    }
+
+    private static Optional<Integer> findMatchingSprint(Date sampleDate) {
+        final Optional<Integer> resp = sprintRanges.entrySet().parallelStream()
+                .filter(r -> {
+                    final Range<Date> range = r.getKey();
+                    final Date start = range.getStart();
+                    return (start.compareTo(sampleDate) <= 0
+                            && range.getEnd().compareTo(sampleDate) >= 0);
+                })
+                .map(Map.Entry::getValue)
+                .findFirst();
+        return resp;
+    }
+
+    private static Optional<Date> filterHistoryStatuses(JSONArray histories, List<String> statuses) {
+if (DEBUG) {
+    log.info(statuses.stream().collect(joining(",")));
+}
+        try {
+            Optional<Date> entryStatusChange = histories.parallelStream()
+                    .flatMap(h -> {
+                        JSONObject history = (JSONObject) h;
+                        JSONArray items = (JSONArray) history.get("items");
+                        Stream<JSONObject> changes = items.parallelStream().filter(i -> {
+                            JSONObject item = (JSONObject) i;
+                            final String field = (String) item.get("field");
+                            final String fieldValue = (String) item.get("toString");
+                            final boolean matches = field.equals("status")
+                                    && statuses.contains(fieldValue.toUpperCase());
+if (DEBUG) {
+    log.log(Level.INFO, "{0}:{1}={2}", new Object[]{field, fieldValue, matches});
+}
+                            return matches;
+                        });
+                        return changes.map(i -> {
+                            JSONObject change = (JSONObject) i;
+                            final Date created = (Date) change.get("created");
+                            return created;
+                        });
+                    }).sorted()
+                    .findFirst();
+            return entryStatusChange;
+        } catch (NullPointerException npe) {
+            log.log(Level.SEVERE, "", npe);
+            return Optional.empty();
+        }
+    }
+
+    private static List<Ticket> collectEpics(String JIRAid) throws InvalidVarNameException, InvalidParamException, Exception {
+        List<Ticket> resp = new LinkedList<>();
+        String url = AntSMUtilites.parse("[:JIRA_home]") + "/rest/agile/1.0/board/" + JIRAid + "/epic";
+        JSONObject jsonObj = JSONRequest(url);
+        JSONArray epics = (JSONArray) jsonObj.get("values");
+        if (epics != null) {
+            resp = (List<Ticket>) epics.stream()
+                    .map(v -> {
+                        JSONObject jsonEpic = (JSONObject) v;
+                        Ticket ticket = new Ticket();
+                        ticket.setKey((String) jsonEpic.get("key"));
+                        try {
+                            ticket.setURL(AntSMUtilites.parse("[:JIRA_home]") + "/browse/" + ticket.getKey());
+                        } catch (Exception ex) {
+                            log.log(Level.SEVERE, null, ex);
+                        }
+                        ticket.setSummary((String) jsonEpic.get(summaryField));
+                        return ticket;
+                    }).collect(toList());
         }
         return resp;
     }
