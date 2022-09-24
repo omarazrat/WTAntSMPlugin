@@ -31,14 +31,22 @@ public final class Ticket {
         STORY,
         BUG
     };
+    
     private String key;
+    private String summary;
     private String URL;
     private TYPE type;
-    private String assignee;
+    private String assignee = "";
     private String status;
-    private String epic;
+    private String epic = "";
+    private double points;
+    private List<Integer> sprints = new LinkedList<>();
     private List<String> fixEngineers = new LinkedList<>();
     private List<String> teams = new LinkedList<>();
+
+    public boolean matchesSprint(Integer sprint) {
+        return sprints.contains(sprint);
+    }
     
     public boolean matchesTeam(String teamName){
         return teams.contains(teamName);
