@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
@@ -104,6 +105,7 @@ public final class ConfluenceHelper {
             final List<Ticket> sprintTickets = tickets.parallelStream()
                     .filter(t -> t.matchesSprint(sprint))
                     .collect(toList());
+//log.info("sprint "+sprint+":"+sprintTickets.stream().map(Ticket::toString).collect(joining()));
             double total = sprintTickets.parallelStream()
                     .map(Ticket::getPoints)
                     .reduce(0d, Double::sum);
@@ -123,6 +125,7 @@ public final class ConfluenceHelper {
                         names.add(ticket.getAssignee());
                         return names.stream();
                     })
+                    .filter(d->d!=null)
                     .distinct()
                     .collect(toList());
             cinfo.setDevelopers(developers.size());
@@ -133,7 +136,8 @@ public final class ConfluenceHelper {
             Map<String, Double> personalCoefficients = new HashMap<>();
             for (String developer : developers) {
                 total = sumPointsByDeveloper(sprintTickets, developer);
-                completed = sumCompletedPointsByDeveloper(sprintTickets, exitStatuses, developer);
+                completed = sumCompletedPointsByDeveloper(sprintTickets, exitStatuses, developer,sprint);
+//log.info(developer+" has "+completed+" out of "+total+"");
                 final double pCoefficient = completed == 0 ? 0 : total / completed;
                 personalCoefficients.put(developer, pCoefficient);
             }
@@ -148,7 +152,7 @@ public final class ConfluenceHelper {
                     ideal = pointsxHour * cinfo.getEffectiveHours();
             cinfo.setIdeal(ideal);
             resp.add(cinfo);
-            log.info("adding "+cinfo.toString());
+//            log.info("adding "+cinfo.toString());
         }
         return resp;
     }

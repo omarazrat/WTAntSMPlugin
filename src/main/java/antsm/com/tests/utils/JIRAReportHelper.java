@@ -25,6 +25,7 @@ import static antsm.com.tests.utils.JIRAReportHelper.TABLE_TYPE.COMPLETED_OUTSID
 import static antsm.com.tests.utils.JIRAReportHelper.TABLE_TYPE.REMOVED_FROM_SPRINT;
 import static antsm.com.tests.utils.Utils.JSONRequest;
 import java.io.IOException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
@@ -42,7 +43,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
-import java.util.stream.Stream;
 import oa.com.tests.actionrunners.exceptions.InvalidParamException;
 import oa.com.tests.actionrunners.exceptions.InvalidVarNameException;
 import org.apache.commons.collections4.map.HashedMap;
@@ -521,7 +521,7 @@ public final class JIRAReportHelper {
             WebElement assigneeSpan = driver.findElement(By.cssSelector("#assignee-val"));
             ticket.setAssignee(assigneeSpan.getText());
             WebElement statusSpan = driver.findElement(By.cssSelector(".jira-issue-status-lozenge"));
-            ticket.setStatus(statusSpan.getText());
+            ticket.setStatus(statusSpan.getText().toUpperCase());
             String selector = ".aui-label";
             boolean hasField = !driver.findElements(By.cssSelector(selector)).isEmpty();
             if (hasField) {
@@ -585,7 +585,7 @@ public final class JIRAReportHelper {
             }
             JSONObject jsonStatus = (JSONObject) jsonFields.get(statusField);
             if (jsonStatus != null) {
-                resp.setStatus((String) jsonStatus.get("name"));
+                resp.setStatus(((String) jsonStatus.get("name")).toUpperCase());
             }
             resp.setURL(AntSMUtilites.parse("[:JIRA_home]") + "/browse/" + key);
             //type
@@ -612,7 +612,9 @@ public final class JIRAReportHelper {
                         .stream().map(v -> {
                             JSONObject fixEngineer = (JSONObject) v;
                             return fixEngineer.get("displayName");
-                        }).collect(toList());
+                        }).filter(fe->!fe.toString().isBlank())
+                        .distinct()
+                        .collect(toList());
                 resp.setFixEngineers(fixEngineers);
             }
             //summary
@@ -648,7 +650,10 @@ public final class JIRAReportHelper {
                 SPreportDimension epReport = new SPreportDimension(SPreportDimension.Dimension.EPIC);
                 epReport.setId(epic.getKey());
                 final List<Ticket> epicTickets = sprintTickets.parallelStream()
-                        .filter(ticket -> ticket.getEpic().equals(epic.getKey()))
+                        .filter(ticket -> {
+                            final String tck_epic = ticket.getEpic();
+                            return tck_epic.equals(epic.getKey());
+                        })
                         .collect(toList());
                 double estimated = epicTickets.parallelStream()
                         .map(Ticket::getPoints)
@@ -659,6 +664,7 @@ public final class JIRAReportHelper {
                         .map(Ticket::getPoints)
                         .reduce(0d, Double::sum);
                 epReport.setAllComplete(completed);
+                epReport.setComplete(completed);
                 epReport.setIncomplete(estimated - completed);
                 spreportDims.add(epReport);
             }
@@ -668,19 +674,39 @@ public final class JIRAReportHelper {
                         names.add(ticket.getAssignee());
                         return names.stream();
                     })
+                    .filter(name -> name != null)
                     .distinct()
                     .collect(toList());
+            final List<SPreportDimension> personalDimensions = new LinkedList<>();
             for (String developer : developers) {
                 SPreportDimension perReport = new SPreportDimension(SPreportDimension.Dimension.INDIVIDUAL);
                 perReport.setUserName(developer);
                 double estimated = Utils.sumPointsByDeveloper(sprintTickets, developer),
-                        completed = Utils.sumCompletedPointsByDeveloper(sprintTickets, exitStatuses, developer);
+                        completed = Utils.sumCompletedPointsByDeveloper(sprintTickets, exitStatuses, developer,sprint);
                 perReport.setComplete(completed);
                 perReport.setAllIncomplete(estimated - completed);
                 perReport.setEstimated(estimated);
                 perReport.setIdeal(pointsxSprint);
-                spreportDims.add(perReport);
+                personalDimensions.add(perReport);
+//                log.info(perReport.toString());
             }
+            spreportDims.addAll(personalDimensions);
+            List<Ticket> completedTickets = sprintTickets.parallelStream().filter(ticket->Utils.closedInSprint(ticket, exitStatuses, sprint)).collect(toList());
+            log.log(Level.INFO, "closed tickets 4 sp {0}:{1}", new Object[]{sprint, completedTickets.stream().map(Ticket::toString).collect(joining(","))});
+            //Global
+            SPreportDimension globalReport = new SPreportDimension(SPreportDimension.Dimension.GROUP);
+//            globalReport.setAddedAst();
+//            globalReport.setAllIncomplete();
+//            globalReport.setCias();
+            globalReport.setComplete(completedTickets.parallelStream().map(Ticket::getPoints).reduce(0d, Double::sum));
+            globalReport.setAllComplete(globalReport.getComplete());
+//            globalReport.setCompleteAst();
+            globalReport.setEstimated(sprintTickets.parallelStream().map(Ticket::getPoints).reduce(0d,Double::sum));
+            globalReport.setIdeal(pointsxSprint*developers.size());
+            globalReport.setIncomplete(globalReport.getEstimated()-globalReport.getComplete());
+//            globalReport.setRemoved();
+            spreportDims.add(globalReport);
+
             info.setReports(spreportDims);
             resp.add(info);
         }
@@ -708,7 +734,6 @@ public final class JIRAReportHelper {
         return tickets;
     }
 
-    static boolean DEBUG;
     /**
      * Attention: la consulta para obtener el JSON que llega acá debería
      * contener expand=changelog
@@ -725,6 +750,8 @@ public final class JIRAReportHelper {
 //        log.log(Level.INFO, "exit:{0}", exitStatuses.stream().collect(joining(",")));
 //        log.info(""+tickets.size());
         tickets.parallelStream().forEach(ticket -> {
+            if(!ticket.getSprints().isEmpty())
+                return;
 //            log.info(ticket.getKey());
             //Sprint(s)
             JSONObject changeLog;
@@ -736,48 +763,53 @@ public final class JIRAReportHelper {
             }
             JSONArray histories = (JSONArray) changeLog.get("histories");
 //            log.info("histories:" + histories.size());
-DEBUG = ticket.getKey().equals("LRN-186221");
             Optional<Date> entryStatusChange = filterHistoryStatuses(histories, entryStatuses);
             Optional<Date> exitStatusChange = filterHistoryStatuses(histories, exitStatuses);
             //Encontró la fecha en que entró al kanban?
             if (entryStatusChange.isPresent()) {
                 final Date entryDate = entryStatusChange.get();
-                log.log(Level.INFO, "entry: {0}", entryDate);
+//                log.log(Level.INFO, "entry: {0}", entryDate);
                 Optional<Integer> startSprintMatch = findMatchingSprint(entryDate);
                 if (startSprintMatch.isPresent()) {
                     int startSprint, finalSprint = -1;
                     startSprint = startSprintMatch.get();
-                    log.info("start sprint:" + startSprint);
+//                    log.info("start sprint:" + startSprint);
                     if (exitStatusChange.isPresent()) {
                         Optional<Integer> endSprintMatch = findMatchingSprint(exitStatusChange.get());
                         if (endSprintMatch.isPresent()) {
                             finalSprint = endSprintMatch.get();
                         }
-                    }
-                    if (finalSprint == -1) {
-                        final Optional<Integer> endSprintMatch = findMatchingSprint(new Date());
-                        if (endSprintMatch.isPresent()) {
-                            finalSprint = endSprintMatch.get();
-                        }
-                    }
-                    List<Integer> sprints = new LinkedList<>();
-                    sprints.add(startSprint);
-                    if (finalSprint != -1) {
-                        if (finalSprint >= startSprint) {
-                            for (int sprint = startSprint + 1; sprint <= finalSprint; sprint++) {
-                                sprints.add(sprint);
-                            }
-                        } else {
-                            for (int sprint = startSprint + 1; sprint <= 26; sprint++) {
-                                sprints.add(sprint);
-                            }
-                            for (int sprint = 1; sprint <= finalSprint; sprint++) {
-                                sprints.add(sprint);
+                        if (finalSprint == -1) {
+                            endSprintMatch = findMatchingSprint(new Date());
+                            if (endSprintMatch.isPresent()) {
+                                finalSprint = endSprintMatch.get();
                             }
                         }
+                        List<Integer> sprints = new LinkedList<>();
+                        sprints.add(startSprint);
+//log.info(ticket.getKey()+"["+startSprint+" to "+finalSprint+"]");
+                        if (finalSprint != -1) {
+                            if (finalSprint >= startSprint) {
+                                for (int sprint = startSprint + 1; sprint <= finalSprint; sprint++) {
+                                    sprints.add(sprint);
+                                }
+                            } else {
+                                for (int sprint = startSprint + 1; sprint <= 26; sprint++) {
+                                    sprints.add(sprint);
+                                }
+                                for (int sprint = 1; sprint <= finalSprint; sprint++) {
+                                    sprints.add(sprint);
+                                }
+                            }
+                        }
+                        ticket.setSprints(sprints);
+//log.info(ticket.getKey()+" ["+sprints.stream().map(i->""+i).collect(joining(","))+"]");
+                    } else {
+                        log.fine("No aparece fin de estado para el ticket " + ticket.getKey() + " y los estados " + exitStatuses.stream().collect(joining(",")));
                     }
-                    ticket.setSprints(sprints);
                 }
+            } else {
+                log.log(Level.SEVERE, "Couldn''t get entry date of ticket {0} in states {1}", new Object[]{ticket.getKey(), entryStatuses.stream().collect(joining(","))});
             }
         });
     }
@@ -795,6 +827,11 @@ DEBUG = ticket.getKey().equals("LRN-186221");
         return (JSONObject) Utils.JSONRequest(url).get("changelog");
     }
 
+    /**
+     * Attention: por facilidad, se manejan estados sólo en mayúscula
+     * @param JIRAid
+     * @return 
+     */
     public static List<String> getExitStatuses(String JIRAid) {
         String stKey;
         List<String> statuses;
@@ -821,37 +858,43 @@ DEBUG = ticket.getKey().equals("LRN-186221");
     }
 
     private static Optional<Date> filterHistoryStatuses(JSONArray histories, List<String> statuses) {
-if (DEBUG) {
-    log.info(statuses.stream().collect(joining(",")));
-}
-        try {
-            Optional<Date> entryStatusChange = histories.parallelStream()
-                    .flatMap(h -> {
-                        JSONObject history = (JSONObject) h;
-                        JSONArray items = (JSONArray) history.get("items");
-                        Stream<JSONObject> changes = items.parallelStream().filter(i -> {
-                            JSONObject item = (JSONObject) i;
-                            final String field = (String) item.get("field");
-                            final String fieldValue = (String) item.get("toString");
-                            final boolean matches = field.equals("status")
-                                    && statuses.contains(fieldValue.toUpperCase());
-if (DEBUG) {
-    log.log(Level.INFO, "{0}:{1}={2}", new Object[]{field, fieldValue, matches});
-}
-                            return matches;
-                        });
-                        return changes.map(i -> {
-                            JSONObject change = (JSONObject) i;
-                            final Date created = (Date) change.get("created");
-                            return created;
-                        });
-                    }).sorted()
-                    .findFirst();
-            return entryStatusChange;
-        } catch (NullPointerException npe) {
-            log.log(Level.SEVERE, "", npe);
-            return Optional.empty();
-        }
+        Optional<Date> entryStatusChange = histories.parallelStream()
+                .map(h -> {
+                    //La inicialización de esta variable (df), falla por fuera del bucle
+                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+                    JSONObject history = (JSONObject) h;
+                    JSONArray items = (JSONArray) history.get("items");
+                    List<JSONObject> changes = (List<JSONObject>) items.parallelStream().filter(i -> {
+                        JSONObject item = (JSONObject) i;
+                        final String field = (String) item.get("field");
+                        final String fieldValue = (String) item.get("toString");
+                        final boolean matches = field.equals("status")
+                                && statuses.contains(fieldValue.toUpperCase());
+//if (DEBUG) {
+//    log.log(Level.INFO, "{0}:{1}={2}", new Object[]{field, fieldValue, matches});
+//}
+                        return matches;
+                    }).collect(toList());
+//if (DEBUG) {
+//    log.info(changes.stream().map(JSONObject::toString).collect(joining(",")));
+//}
+                    Date created = null;
+                    if (!changes.isEmpty()) {
+                        try {
+                            created = df.parse((String) history.get("created"));
+                        } catch (ParseException | NumberFormatException ex) {
+                            log.log(Level.SEVERE, (String) history.get("created"), ex);
+                            return null;
+                        }
+                    }
+//if (DEBUG) {
+//    log.info("returning " + created);
+//}
+                    return created;
+                }).filter(d -> d != null)
+                .sorted()
+                .findFirst();
+        return entryStatusChange;
     }
 
     private static List<Ticket> collectEpics(String JIRAid) throws InvalidVarNameException, InvalidParamException, Exception {

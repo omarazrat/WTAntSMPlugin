@@ -256,6 +256,7 @@ public final class PoiHelper {
                     continue;
                 }
                 if (spreportInfo != null && jrInfo != null) {
+//log.info(spreportInfo.toString());
                     List<SPreportDimension> dpreports = spreportInfo.getMany(dimension);
                     for (SPreportDimension dp : dpreports) {
                         row = sheet.createRow(rownum++);
@@ -299,6 +300,7 @@ public final class PoiHelper {
                         = inCapacitiesCache(teamName, sprints)
                         ? getCapacitiesCache(teamName, sprints)
                         : getCapacities(teamName, sprints);
+//log.info("capacities:"+capacities.stream().map(Object::toString).collect(joining(",")));
                 //Reporte de Confluence...
                 String JIRAid = getJIRAid(teamName);
                 if (JIRAid == null) {
@@ -309,12 +311,12 @@ public final class PoiHelper {
                         = inSPRCache(teamName, sprints)
                         ? getSPRCache(teamName, sprints)
                         : getSPReports(teamName, JIRAid, sprints);
-
+//log.info("spreps: "+spreports.stream().map(Object::toString).collect(joining(",")));
                 final List<JIRAReportInfo> JIRAReports
                         = inJIRARCache(teamName, sprints)
                         ? getJIRARCache(teamName, sprints)
                         : getJIRAReports(teamName, JIRAid, sprints);
-
+//log.info("JIRA reps: "+JIRAReports.stream().map(Object::toString).collect(joining(",")));
                 for (Integer sprint : sprints) {
                     Predicate<AbstractTeamSprintInfo> teamSprintSearcher = (x -> x.getTeamName().equals(teamName) && x.getSprint() == sprint);
                     Optional<CapacityInfo> capacityMatch = capacities.stream().filter(teamSprintSearcher).findFirst();
@@ -634,7 +636,7 @@ public final class PoiHelper {
                     //Epic
                     cell = row.createCell(cellnum++);
                     final String epic = teamTicket.getEpic();
-                    if (epic != null) {
+                    if (!epic.isEmpty()) {
                         link = creationHelper.createHyperlink(HyperlinkType.URL);
                         link.setAddress(JIRA_HOME + "/browse/" + epic);
                         cell.setHyperlink(link);

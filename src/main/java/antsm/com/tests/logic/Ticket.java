@@ -36,9 +36,9 @@ public final class Ticket {
     private String summary;
     private String URL;
     private TYPE type;
-    private String assignee;
+    private String assignee = "";
     private String status;
-    private String epic;
+    private String epic = "";
     private double points;
     private List<Integer> sprints = new LinkedList<>();
     private List<String> fixEngineers = new LinkedList<>();

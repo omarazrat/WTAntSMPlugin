@@ -34,7 +34,9 @@ import org.json.simple.parser.ParseException;
  * @author nesto
  */
 public abstract class Utils {
+
     private static Logger log = Logger.getLogger("WebAppTester");
+
     public static JSONObject JSONRequest(final String url) throws ParseException, Exception, IOException, URISyntaxException, InterruptedException {
 //        log.info("loading "+url);
         String valueToEncode = JIRAReportHelper.getJiraUser() + ":" + AntSMUtilites.parse(JIRAReportHelper.getJiraPassword());
@@ -52,38 +54,46 @@ public abstract class Utils {
         return jsonObj;
     }
 
-    public static Double sumCompletedPointsByDeveloper(final List<Ticket> sprintTickets, final List<String> exitStatuses, String developer) {
+    public static Double sumCompletedPointsByDeveloper(final List<Ticket> sprintTickets, final List<String> exitStatuses,
+             String developer, int sprint) {
         return sprintTickets
                 .parallelStream()
                 .map(ticket -> {
-                    if (!exitStatuses.contains(ticket.getStatus())) {
+                    if (!closedInSprint(ticket, exitStatuses, sprint)) {
                         return 0d;
-                    }
-                    if (ticket.getAssignee().equals(developer)) {
-                        return ticket.getPoints();
                     }
                     final List<String> fixEngineers = ticket.getFixEngineers();
                     if (fixEngineers.contains(developer)) {
                         return ticket.getPoints() / fixEngineers.size();
                     }
+                    if (ticket.getAssignee().equals(developer)) {
+                        return ticket.getPoints();
+                    }
                     return 0d;
-                }).reduce(0d,Double::sum);
+                }).reduce(0d, Double::sum);
     }
 
     public static Double sumPointsByDeveloper(final List<Ticket> sprintTickets, String developer) {
         return sprintTickets
                 .parallelStream()
                 .map(ticket -> {
-                    final String assignee = ticket.getAssignee();
-                    if (assignee != null && assignee.equals(developer)) {
-                        return ticket.getPoints();
-                    }
                     final List<String> fixEngineers = ticket.getFixEngineers();
                     if (fixEngineers.contains(developer)) {
                         return ticket.getPoints() / fixEngineers.size();
                     }
+                    if (ticket.getAssignee().equals(developer)) {
+                        return ticket.getPoints();
+                    }
                     return 0d;
                 }).reduce(0d, Double::sum);
+    }
+
+    public static boolean closedInSprint(Ticket ticket, List<String> exitStatuses, int sprint) {
+        final int nextSprint = sprint == 26 ? 1:sprint + 1;
+        //Si se cerró en este sprint
+        return ticket.matchesSprint(sprint) && !ticket.matchesSprint(nextSprint)
+                && //Si el estadu cuadra
+                exitStatuses.contains(ticket.getStatus());
     }
 
 }
