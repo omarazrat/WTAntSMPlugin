@@ -36,7 +36,6 @@ public class SPReportInfo extends AbstractTeamSprintInfo {
     private static Logger log = Logger.getLogger("WebAppTester");
     private List<SPreportDimension> reports = new LinkedList<>();
 
-    ;
     public SPReportInfo(String teamName, int sprint) {
         super(teamName, sprint);
     }

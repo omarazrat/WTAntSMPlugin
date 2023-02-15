@@ -114,6 +114,11 @@ public final class PythonReportHelper {
             int descriptionOffset = 0;
             String[] tokens;
             while ((s = stdInput.readLine()) != null) {
+                if (s.length() == 0) {
+                    linecounter++;
+                    continue;
+                }
+                //log.severe("Error: input = \"\"");
 //                log.info(s);
                 //titles
                 if (linecounter == 2) {
@@ -127,6 +132,7 @@ public final class PythonReportHelper {
                     if (spgroup == null) {
                         break;
                     }
+//                    log.info("adding spgroup "+spgroup);
                     spinfo.add(spgroup);
                 } else if (s.equals("By DP")) {
                     stdInput.readLine();//ID          Description                     Estimated  All Complete  Incomplete  Removed   Added*  Complete*  Incomplete*  Complete  All Incomplete  CiAS
@@ -149,6 +155,8 @@ public final class PythonReportHelper {
                         collectIndividualResults(s, descriptionOffset, estimatedOffset, teamName, sprint, spinfo);
                         s = stdInput.readLine();
                     }
+                    //Sale del while porque no hay nada más que recolectar...
+                    break;
                 }
                 linecounter++;
             }
@@ -206,7 +214,7 @@ public final class PythonReportHelper {
     public static boolean inSPRCache(String teamName, Integer sprint) {
         SPReportInfo sample = new SPReportInfo(teamName, sprint);
 //        log.info(spreportCache.stream().map(SPReportInfo::toString).collect(joining("\n")));
-        return spreportCache.stream().anyMatch(r->r.getTeamName().equals(teamName) && r.getSprint()==sprint);
+        return spreportCache.stream().anyMatch(r -> r.getTeamName().equals(teamName) && r.getSprint() == sprint);
     }
 
     /**
@@ -228,7 +236,7 @@ public final class PythonReportHelper {
     }
 
     public static SPReportInfo getSPRCache(String teamName, int sprint) {
-        Optional<SPReportInfo> match = spreportCache.stream().filter(r->r.getTeamName().equals(teamName)&&r.getSprint()==sprint)
+        Optional<SPReportInfo> match = spreportCache.stream().filter(r -> r.getTeamName().equals(teamName) && r.getSprint() == sprint)
                 .findFirst();
         if (match.isPresent()) {
             return match.get();

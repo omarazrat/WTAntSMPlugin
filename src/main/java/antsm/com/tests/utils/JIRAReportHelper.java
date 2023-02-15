@@ -195,7 +195,9 @@ public final class JIRAReportHelper {
                 List<WebElement> tables = driver.findElements(tableSelector);
                 for (int i = 0; i < tables.size(); i++) {
                     WebElement table = tables.get(i);
-                    TABLE_TYPE tableType = tableTypes.get(i);
+                    TABLE_TYPE tableType = i < tableTypes.size()?
+                            tableTypes.get(i):
+                            null;
 //                    log.info("table of type "+tableType);
                     if (tableType == null) {
                         log.log(Level.SEVERE, "table not matching any type found with index {0}{1}!", new Object[]{i, 1});

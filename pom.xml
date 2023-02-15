@@ -57,7 +57,8 @@
                                     </includes>
                                 </resource>
                             </resources>
-                            <outputDirectory>../WebAppTester/lib</outputDirectory>
+                            <outputDirectory>C:/Users/nesto/AppData/Local/jWebAppTester/lib</outputDirectory>
+                            <outputDirectory>C:/Users/nesto/OneDrive/Documentos/Laboral/Empresas/Anthology/bin/lib</outputDirectory>
                         </configuration>
                     </execution>
                </executions>

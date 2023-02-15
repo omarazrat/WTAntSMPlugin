@@ -1,14 +1,14 @@
 #ir a la página del equipo.
 go={{TEAM_URL}}
 pause={"time":"[:shortdelay]"}
-click={"selector":"#action-menu-link > span > span"}
+click={"selector":"#action-menu-link > span:nth-child(1) > span:nth-child(1)"}
 pause={"time":"[:shortdelay]"}
 #Archivos adjuntos
 click={"selector":"#view-attachments-link"}
 pause={"time":"[:longdelay]"}
-click={"selector":"td.filename-column > a.filename"}
+click={"selector":"a.filename:nth-child(2)"}
 #descargar...
 pause={"time":"[:longdelay]"}
-wait={"selector":"#cp-container-1 > div.cp-header.cp-header-group > div.cp-file-controls.cp-header-item > span:nth-child(2) > a"}
-click={"selector":"#cp-container-1 > div.cp-header.cp-header-group > div.cp-file-controls.cp-header-item > span:nth-child(2) > a"}
+wait={"selector":".cp-control-panel-download"}
+click={"selector":".cp-control-panel-download"}
 pause={"time":"[:longdelay]"}

@@ -201,7 +201,7 @@ public final class PoiHelper {
         int total = worker.getProgress();
         worker.firePropertyChange("progress", 0, total + Double.valueOf(5 * factor).intValue());
         int delta = 90 / teamNames.size();
-        //            log.info("delta:"+delta);
+//                    log.info("delta:"+delta);
         total += (5 * factor);
         for (String teamName : teamNames) {
             worker.firePropertyChange("progress", total - delta, total + Double.valueOf(total).intValue());
@@ -250,15 +250,19 @@ public final class PoiHelper {
                 } else {
                     jrInfo = JIRAMatch.get();
                 }
+//                log.info("still here");
                 if (spreportInfo == null
                         && jrInfo == null
                         && capacityInfo == null) {
+                    log.info("skipping for spreportinfo,jrinfo,capacityInfo=null");
                     continue;
                 }
                 if (spreportInfo != null && jrInfo != null) {
                     List<SPreportDimension> dpreports = spreportInfo.getMany(dimension);
+//                log.info("dpreports:"+dpreports);
                     for (SPreportDimension dp : dpreports) {
                         row = sheet.createRow(rownum++);
+//log.info("filling XL Row");
                         fillXLRow(spreportInfo, jrInfo, dp, teamName, sprint, ReportMode.FORM2, capacityInfo, row);
                     }
                 }
@@ -305,6 +309,7 @@ public final class PoiHelper {
                     log.log(Level.SEVERE, "couldn''t find JIRA id for team {0}", teamName);
                     continue;
                 }
+//log.info("continuando...");
                 final List<SPReportInfo> spreports
                         = inSPRCache(teamName, sprints)
                         ? getSPRCache(teamName, sprints)
@@ -318,13 +323,13 @@ public final class PoiHelper {
                 for (Integer sprint : sprints) {
                     Predicate<AbstractTeamSprintInfo> teamSprintSearcher = (x -> x.getTeamName().equals(teamName) && x.getSprint() == sprint);
                     Optional<CapacityInfo> capacityMatch = capacities.stream().filter(teamSprintSearcher).findFirst();
-//                    log.info(capacities.stream().map(CapacityInfo::shortPrint).collect(joining("\n")));
+//log.info(capacities.stream().map(CapacityInfo::shortPrint).collect(joining("\n")));
                     CapacityInfo capacityInfo = null;
                     if (capacityMatch.isEmpty()) {
                         log.severe("skipping capacity not found: " + teamName + ", sprint " + sprint);
                     } else {
                         capacityInfo = capacityMatch.get();
-//                        log.info(capacityMatch.toString());
+//log.info(capacityMatch.toString());
                     }
                     Optional<SPReportInfo> SPRMatch = spreports.stream().filter(teamSprintSearcher).findFirst();
                     SPReportInfo spreportInfo = null;
